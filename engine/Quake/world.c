@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // world.c -- world query functions
 
 #include "quakedef.h"
+#include "arch.h" // QUAKEARCH
 
 /*
 
@@ -556,6 +557,9 @@ int SV_PointContents (vec3_t p)
 {
 	int		cont;
 
+	if (Arch_Active ()) // QUAKEARCH
+		return ArchCollide_PointContents (p);
+
 	cont = SV_HullPointContents (&sv.worldmodel->hulls[0], 0, p);
 	if (cont <= CONTENTS_CURRENT_0 && cont >= CONTENTS_CURRENT_DOWN)
 		cont = CONTENTS_WATER;
@@ -564,6 +568,9 @@ int SV_PointContents (vec3_t p)
 
 int SV_TruePointContents (vec3_t p)
 {
+	if (Arch_Active ()) // QUAKEARCH
+		return ArchCollide_PointContents (p);
+
 	return SV_HullPointContents (&sv.worldmodel->hulls[0], 0, p);
 }
 
@@ -750,6 +757,9 @@ trace_t SV_ClipMoveToEntity (edict_t *ent, vec3_t start, vec3_t mins, vec3_t max
 	vec3_t		offset;
 	vec3_t		start_l, end_l;
 	hull_t		*hull;
+
+	if (ent == sv.edicts && Arch_Active ()) // QUAKEARCH: the world is the brush world
+		return ArchCollide_ClipMove (ent, start, mins, maxs, end);
 
 // fill in a default trace
 	memset (&trace, 0, sizeof(trace_t));

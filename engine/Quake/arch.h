@@ -21,6 +21,10 @@ qboolean	Arch_Active (void);	/* true while the server is running the arch map */
 const char	*Arch_Dir (void);	/* value of -archdir, forward slashes, no trailing slash; NULL if absent */
 void		Arch_TextureNames (const char *names[3]);	/* indexed by ARCH_SLOT_* */
 
+/* arch_collide.c */
+trace_t		ArchCollide_ClipMove (edict_t *ent, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end);
+int		ArchCollide_PointContents (vec3_t p);	/* CONTENTS_SOLID or CONTENTS_EMPTY */
+
 /* arch_stubbsp.c */
 byte		*ArchStubBSP_Build (int *size);	/* minimal BSP file image in a static buffer */
 

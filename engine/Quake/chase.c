@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // chase.c -- chase camera code
 
 #include "quakedef.h"
+#include "arch.h" // QUAKEARCH
 
 cvar_t	chase_back = {"chase_back", "100", CVAR_NONE};
 cvar_t	chase_up = {"chase_up", "16", CVAR_NONE};
@@ -51,6 +52,13 @@ TODO: impact on bmodels, monsters
 void TraceLine (vec3_t start, vec3_t end, vec3_t impact)
 {
 	trace_t	trace;
+
+	if (Arch_Active ()) // QUAKEARCH: the arch map's geometry is the brush world
+	{
+		trace = ArchCollide_ClipMove (NULL, start, vec3_origin, vec3_origin, end);
+		VectorCopy (trace.endpos, impact);
+		return;
+	}
 
 	memset (&trace, 0, sizeof(trace));
 	SV_RecursiveHullCheck (cl.worldmodel->hulls, 0, 0, 1, start, end, &trace);
