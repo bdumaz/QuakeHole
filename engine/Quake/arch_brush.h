@@ -45,4 +45,15 @@ int       ArchBrush_Intersects (const abrush_t *a, const abrush_t *b);
    *out is malloc'd (NULL when the count is 0), caller frees the array and the pieces. */
 int       ArchBrush_Subtract (const abrush_t *a, const abrush_t *b, abrush_t ***out);
 
+#define ARCH_TRACE_EPS (1.0 / 32.0)	/* movers stop this far short of a surface */
+
+typedef struct { double fraction; int startsolid, allsolid; avec3 normal; double dist; } atrace_t;
+
+void      ArchTrace_Init (atrace_t *tr);	/* fraction 1, flags 0 */
+/* Sweeps the box [mins,maxs] (relative to the point) from start to end.
+   Updates *tr only if this brush is hit earlier than tr->fraction, or to set startsolid/allsolid.
+   A box that exactly touches a face counts as outside the brush. */
+void      ArchBrush_TraceBox (const abrush_t *b, const avec3 start, const avec3 end,
+			      const avec3 mins, const avec3 maxs, atrace_t *tr);
+
 #endif /* ARCH_BRUSH_H */

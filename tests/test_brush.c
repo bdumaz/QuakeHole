@@ -235,6 +235,95 @@ static void test_subtract (void)
 	ArchBrush_Free (B4); ArchBrush_Free (B5); ArchBrush_Free (B6);
 }
 
+static void test_trace (void)
+{
+	abrush_t *B = box6 (0, 0, 0, 64, 64, 64), *W = wedge ();
+	avec3 zero = {0, 0, 0}, pmin = {-16, -16, -24}, pmax = {16, 16, 32};
+	atrace_t tr;
+	int axis, side, k;
+
+	/* a ray from each of the six directions through the centre */
+	for (axis = 0; axis < 3; axis++)
+	{
+		for (side = 0; side < 2; side++)
+		{
+			avec3 s = {32, 32, 32}, e = {32, 32, 32};
+			s[axis] = side ? 164 : -100;
+			e[axis] = side ? -36 : 100;
+			ArchTrace_Init (&tr);
+			CHECK (tr.fraction == 1.0 && !tr.startsolid && !tr.allsolid);
+			ArchBrush_TraceBox (B, s, e, zero, zero, &tr);
+			CHECK_NEAR (tr.fraction, (100.0 - 1.0 / 32) / 200.0, 1e-9);
+			CHECK (!tr.startsolid && !tr.allsolid);
+			for (k = 0; k < 3; k++)
+				CHECK_NEAR (tr.normal[k], k == axis ? (side ? 1.0 : -1.0) : 0.0, 1e-9);
+		}
+	}
+	{	/* passes beside */
+		avec3 s = {-100, 100, 32}, e = {100, 100, 32};
+		ArchTrace_Init (&tr);
+		ArchBrush_TraceBox (B, s, e, zero, zero, &tr);
+		CHECK (tr.fraction == 1.0 && !tr.startsolid);
+	}
+	{	/* starts inside, ends outside */
+		avec3 s = {32, 32, 32}, e = {200, 32, 32};
+		ArchTrace_Init (&tr);
+		ArchBrush_TraceBox (B, s, e, zero, zero, &tr);
+		CHECK (tr.startsolid == 1 && !tr.allsolid);
+	}
+	{	/* wholly inside */
+		avec3 s = {10, 32, 32}, e = {50, 32, 32};
+		ArchTrace_Init (&tr);
+		ArchBrush_TraceBox (B, s, e, zero, zero, &tr);
+		CHECK (tr.startsolid == 1 && tr.allsolid == 1 && tr.fraction == 0.0);
+	}
+	{	/* player box dropping onto the top */
+		avec3 s = {32, 32, 200}, e = {32, 32, 0};
+		double z;
+		ArchTrace_Init (&tr);
+		ArchBrush_TraceBox (B, s, e, pmin, pmax, &tr);
+		z = 200 - 200 * tr.fraction;
+		CHECK (z >= 88.0 && z <= 88.0 + 2.0 / 32);
+		CHECK_NEAR (tr.normal[2], 1.0, 1e-9);
+		CHECK_NEAR (tr.dist, 64.0, 1e-9);
+	}
+	{	/* Review Focus 1: resting on top, sliding along it */
+		avec3 s = {32, 32, 88}, e = {48, 32, 88};
+		ArchTrace_Init (&tr);
+		ArchBrush_TraceBox (B, s, e, pmin, pmax, &tr);
+		CHECK (tr.fraction == 1.0 && !tr.startsolid);
+	}
+	{	/* Review Focus 1: resting on top, moving up */
+		avec3 s = {32, 32, 88}, e = {32, 32, 120};
+		ArchTrace_Init (&tr);
+		ArchBrush_TraceBox (B, s, e, pmin, pmax, &tr);
+		CHECK (tr.fraction == 1.0 && !tr.startsolid);
+	}
+	{	/* resting on top, pushing down */
+		avec3 s = {32, 32, 88}, e = {32, 32, 80};
+		ArchTrace_Init (&tr);
+		ArchBrush_TraceBox (B, s, e, pmin, pmax, &tr);
+		CHECK (tr.fraction == 0.0 && !tr.startsolid);
+	}
+	{	/* an earlier hit is kept */
+		avec3 s = {-100, 32, 32}, e = {100, 32, 32};
+		ArchTrace_Init (&tr);
+		tr.fraction = 0.1;
+		ArchBrush_TraceBox (B, s, e, zero, zero, &tr);
+		CHECK (tr.fraction == 0.1);
+	}
+	{	/* angled face: the wedge hypotenuse */
+		avec3 s = {64, 64, 32}, e = {0, 0, 32};
+		ArchTrace_Init (&tr);
+		ArchBrush_TraceBox (W, s, e, zero, zero, &tr);
+		CHECK_NEAR (tr.normal[0], 0.70710678, 1e-6);
+		CHECK_NEAR (tr.normal[1], 0.70710678, 1e-6);
+		CHECK_NEAR (64 - 64 * tr.fraction, 32.0, 0.1);
+	}
+	ArchBrush_Free (B);
+	ArchBrush_Free (W);
+}
+
 void test_brush (void)
 {
 	test_box ();
@@ -242,4 +331,5 @@ void test_brush (void)
 	test_prism ();
 	test_split ();
 	test_subtract ();
+	test_trace ();
 }

@@ -562,3 +562,83 @@ int ArchBrush_Subtract (const abrush_t *a, const abrush_t *b, abrush_t ***out)
 	*out = pieces;
 	return n;
 }
+
+/* --------------------------------------------------------------- tracing */
+
+#define TOUCH_EPS	1e-6	/* a mover this close to a face is touching it, not inside */
+
+void ArchTrace_Init (atrace_t *tr)
+{
+	memset (tr, 0, sizeof(*tr));
+	tr->fraction = 1.0;
+}
+
+/* after Quake 3's CM_TraceThroughBrush */
+void ArchBrush_TraceBox (const abrush_t *b, const avec3 start, const avec3 end,
+			 const avec3 mins, const avec3 maxs, atrace_t *tr)
+{
+	const aplane_t	*hit = NULL;
+	double		enter = -1, leave = 1;
+	int		startout = 0, getout = 0;
+	int		i, k;
+
+	for (i = 0; i < b->nfaces; i++)
+	{
+		const aplane_t	*pl = &b->faces[i].plane;
+		double		dd = pl->d, d1, d2, f;
+
+		/* push the plane out by the box corner nearest to it */
+		for (k = 0; k < 3; k++)
+			dd -= (pl->n[k] < 0 ? maxs[k] : mins[k]) * pl->n[k];
+		d1 = DOT (start, pl->n) - dd;
+		d2 = DOT (end, pl->n) - dd;
+
+		if (d2 > 0)
+			getout = 1;
+		if (d1 >= -TOUCH_EPS)
+		{
+			startout = 1;
+			if (d2 >= d1)
+				return;		/* outside this plane and not approaching: miss */
+		}
+		if (d1 < -TOUCH_EPS && d2 <= 0)
+			continue;	/* stays behind this plane */
+		if (d1 > d2)
+		{
+			f = (d1 - ARCH_TRACE_EPS) / (d1 - d2);
+			if (f < 0)
+				f = 0;
+			if (f > enter)
+			{
+				enter = f;
+				hit = pl;
+			}
+		}
+		else
+		{
+			f = (d1 + ARCH_TRACE_EPS) / (d1 - d2);
+			if (f > 1)
+				f = 1;
+			if (f < leave)
+				leave = f;
+		}
+	}
+
+	if (!startout)
+	{
+		tr->startsolid = 1;
+		if (!getout)
+		{
+			tr->allsolid = 1;
+			tr->fraction = 0;
+		}
+		return;
+	}
+	if (enter < leave && enter > -1 && enter < tr->fraction && hit)
+	{
+		tr->fraction = enter;
+		for (k = 0; k < 3; k++)
+			tr->normal[k] = hit->n[k];
+		tr->dist = hit->d;
+	}
+}
