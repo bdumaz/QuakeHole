@@ -95,7 +95,7 @@ In move mode every weapon reshapes the level. The size of the hole follows the d
 
 Those are the widths of the sphere each hit clears. Most of it is in front of the wall, so the bite out of a flat wall is smaller: about 6 half-metre cubes for a shotgun blast against about 120 for a rocket.
 
-The lightning gun digs for as long as you hold it on a surface, at about 6 m of depth a second, with a burst of debris. Monsters' nails, bolts and grenades dig too.
+The lightning gun digs for as long as you hold it on a surface, several metres deeper every second, with a burst of debris. Monsters' nails, bolts and grenades dig too.
 
 Everything dug is made of half-metre cubes on the world grid, so the build cursor works on it and it exports exactly. Jump pads whose surface is dug away disappear. There is no undo; set `arch_dig 0` to shoot without changing the level.
 
