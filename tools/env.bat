@@ -6,7 +6,7 @@ if not exist "%VSWHERE%" goto :novs
 set "VSINSTALL="
 for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VSINSTALL=%%i"
 if not defined VSINSTALL goto :novs
-call "%VSINSTALL%\VC\Auxiliary\Build\vcvars64.bat" >nul
+call "%VSINSTALL%\VC\Auxiliary\Build\vcvars64.bat" >nul 2>nul
 if errorlevel 1 goto :novs
 set ARCH_ENV_READY=1
 exit /b 0
