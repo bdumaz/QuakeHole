@@ -1,12 +1,42 @@
-engine/Windows/VisualStudio/Build-*/
-build/
+# ---------------------------------------------------------------------------
+# Quake game data is copyrighted by id Software and must never be committed.
+# Players supply their own copy (see README.md).
+# ---------------------------------------------------------------------------
+Quake paks/
+id1/
+hipnotic/
+rogue/
+rerelease/
+*.pak
+*.PAK
+*.bsp
+*.BSP
+*.wad
+*.WAD
+*.lmp
+*.LMP
+*.dem
+*.mdl
+*.spr
+*.wav
+# ... except QuakeSpasm's own GPL-licensed support files
+!engine/Quake/quakespasm.pak
+!engine/Misc/qs_pak/**
+
+# Personal notes
+GOALS.md
+history.txt
+
+# Local settings and per-player files
 quakepath.txt
 game/arch/config.cfg
 game/arch/qconsole.log
 game/arch/*.png
+game/arch/*.sav
 game/arch/maps/
 *.user
+
+# Build output and tooling scratch
+engine/Windows/VisualStudio/Build-*/
+build/
 .superpowers/
-history.txt
-Quake paks/
-game/arch/*.sav

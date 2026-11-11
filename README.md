@@ -178,4 +178,4 @@ Selftests write `game\arch\qconsole.log` and screenshots into `game\arch`.
 
 ## Licence
 
-QuakeArch is free software under the GNU General Public License, version 2 or later, as is QuakeSpasm, which it is built on. See `engine/LICENSE.txt`. Quake is a trademark of id Software; this project is not affiliated with id Software or Bethesda.
+QuakeArch is free software under the GNU General Public License, version 2 or later, as is QuakeSpasm, which it is built on. See `LICENSE.txt`. Quake is a trademark of id Software; this project is not affiliated with id Software or Bethesda.
