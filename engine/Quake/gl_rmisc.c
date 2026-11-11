@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_misc.c
 
 #include "quakedef.h"
+#include "arch.h" // QUAKEARCH
 
 //johnfitz -- new cvars
 extern cvar_t r_stereo;
@@ -402,6 +403,9 @@ void R_NewMap (void)
 	R_ParseWorldspawn (); //ericw -- wateralpha, lavaalpha, telealpha, slimealpha in worldspawn
 
 	load_subdivide_size = gl_subdivide_size.value; //johnfitz -- is this the right place to set this?
+
+	if (Arch_Active ()) // QUAKEARCH
+		ArchRender_NewMap ();
 }
 
 /*

@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_world.c: world model rendering
 
 #include "quakedef.h"
+#include "arch.h" // QUAKEARCH
 
 extern cvar_t gl_fullbrights, r_drawflat, gl_overbright, r_oldwater, r_oldskyleaf, r_showtris; //johnfitz
 
@@ -1300,6 +1301,9 @@ void R_DrawWorld (void)
 		return;
 
 	R_DrawTextureChains (cl.worldmodel, NULL, chain_world);
+
+	if (Arch_Active ()) // QUAKEARCH: the visible world is the brush world
+		ArchRender_Draw ();
 }
 
 /*
