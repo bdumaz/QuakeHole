@@ -47,7 +47,14 @@ int       ArchBrush_Subtract (const abrush_t *a, const abrush_t *b, abrush_t ***
 
 #define ARCH_TRACE_EPS (1.0 / 32.0)	/* movers stop this far short of a surface */
 
-typedef struct { double fraction; int startsolid, allsolid; avec3 normal; double dist; } atrace_t;
+typedef struct
+{
+	double	fraction;
+	int	startsolid, allsolid;
+	avec3	normal;		/* plane that was hit, when fraction < 1 */
+	double	dist;
+	double	enter_raw;	/* entry time before clamping; breaks ties between brushes hit at the same fraction */
+} atrace_t;
 
 void      ArchTrace_Init (atrace_t *tr);	/* fraction 1, flags 0 */
 /* Sweeps the box [mins,maxs] (relative to the point) from start to end.

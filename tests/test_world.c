@@ -208,8 +208,83 @@ static void test_corners (void)
 	CHECK (!ArchWorld_BoxFromCorners (a, c, mn, mx));	/* zero size on x */
 }
 
+/* Final review 1: a box pressed against a flush wall must slide over the seam
+   between brushes from different carves; any hit must report the wall itself. */
+static void test_wall_seam_sweep (void)
+{
+	int dir, snags = 0, hits = 0;
+	double x;
+
+	ArchWorld_Reset ();
+	CHECK (carve (160, -48, -160, 480, 48, -32) == 1);	/* corridor */
+	CHECK (carve (480, -48, -160, 800, 200, 0) == 1);	/* room beyond it; wall y=-48 is flush */
+
+	for (dir = -1; dir <= 1; dir += 2)
+	{
+		for (x = 440.0; x <= 520.0; x += 0.005)
+		{
+			avec3 s, e;
+			atrace_t tr;
+
+			s[0] = x; s[1] = -48 + 16 + 1.0 / 32; s[2] = -136;
+			e[0] = x + dir * 8.0; e[1] = s[1] - 4.0; e[2] = -136;
+			ArchWorld_Trace (s, e, pmin, pmax, &tr);
+			if (tr.fraction < 1.0)
+			{
+				hits++;
+				if (tr.normal[1] < 0.99)
+					snags++;
+			}
+		}
+	}
+	CHECK (hits > 0);
+	CHECK (snags == 0);
+}
+
+/* Final review 2: a ray travelling exactly in the plane of a hidden seam must still hit the wall */
+static void test_ray_in_seam_plane (void)
+{
+	double d;
+
+	ArchWorld_Reset ();
+	CHECK (carve (160, 0, 200, 480, 64, 300) == 1);	/* hidden cavity: splits the +x wall along y=0 */
+	d = ray (0, 0, -120, 2000, 0, -120);
+	CHECK (d >= 160.0 - 2.0 / 32 && d <= 160.0);
+	d = ray (0, 0.01, -120, 2000, 0.01, -120);
+	CHECK (d >= 160.0 - 2.0 / 32 && d <= 160.0);
+}
+
+/* Final review 3: carving to the edge of the build volume must not open the world */
+static void test_volume_edge_stays_closed (void)
+{
+	avec3 s, e, p;
+	atrace_t tr;
+	double d;
+
+	ArchWorld_Reset ();
+	CHECK (carve (0, -32, -160, 3000, 32, -96) == 1);
+	d = ray (0, 0, -128, 3000, 0, -128);
+	CHECK (d >= (ARCH_HALF - ARCH_SHELL) - 2.0 / 32 && d <= ARCH_HALF - ARCH_SHELL);
+
+	s[0] = 1900; s[1] = 0; s[2] = -136;
+	e[0] = 2600; e[1] = 0; e[2] = -136;
+	ArchWorld_Trace (s, e, pmin, pmax, &tr);		/* a player cannot walk out */
+	CHECK (tr.fraction < 1.0);
+	p[0] = ARCH_HALF - 4; p[1] = 0; p[2] = -128;
+	CHECK (ArchWorld_PointSolid (p));
+
+	ArchWorld_Reset ();	/* a carve wholly inside the shell changes nothing */
+	drain_dirty ();
+	CHECK (carve (2040, 0, 0, 2048, 64, 64) == 1);
+	CHECK (ArchWorld_BrushCount () == 6);
+	CHECK (drain_dirty () == 0);
+}
+
 void test_world (void)
 {
+	test_wall_seam_sweep ();
+	test_ray_in_seam_plane ();
+	test_volume_edge_stays_closed ();
 	test_initial ();
 	test_carve ();
 	test_add ();

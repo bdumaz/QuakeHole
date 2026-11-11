@@ -263,11 +263,21 @@ static void list_free (list_t *l, int free_brushes)
 
 int ArchWorld_Carve (const abrush_t *shape)
 {
-	list_t	pieces = {0};
-	int	*ids, *removed, n, i, k, nremoved = 0;
+	list_t		pieces = {0};
+	abrush_t	*limit, *clipped;
+	int		*ids, *removed, n, i, k, nremoved = 0;
+	int		mn[3] = {-ARCH_HALF + ARCH_SHELL, -ARCH_HALF + ARCH_SHELL, -ARCH_HALF + ARCH_SHELL};
+	int		mx[3] = {ARCH_HALF - ARCH_SHELL, ARCH_HALF - ARCH_SHELL, ARCH_HALF - ARCH_SHELL};
 
 	if (!shape)
 		return 1;
+	/* the outer skin of the build volume is never carved, so the world cannot be opened to the void */
+	limit = ArchBrush_Box (mn, mx);
+	clipped = ArchBrush_Intersection (shape, limit);
+	ArchBrush_Free (limit);
+	if (!clipped)
+		return 1;
+	shape = clipped;
 	ids = gather (shape->mins, shape->maxs, 0, &n);
 	removed = (int *) malloc ((n ? n : 1) * sizeof(int));
 	for (i = 0; i < n; i++)
@@ -284,6 +294,7 @@ int ArchWorld_Carve (const abrush_t *shape)
 		removed[nremoved++] = ids[i];
 	}
 	free (ids);
+	ArchBrush_Free (clipped);
 
 	if (num_live - nremoved + pieces.count > max_brushes)
 	{

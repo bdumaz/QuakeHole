@@ -571,6 +571,7 @@ void ArchTrace_Init (atrace_t *tr)
 {
 	memset (tr, 0, sizeof(*tr));
 	tr->fraction = 1.0;
+	tr->enter_raw = 1e30;
 }
 
 /* after Quake 3's CM_TraceThroughBrush */
@@ -578,9 +579,11 @@ void ArchBrush_TraceBox (const abrush_t *b, const avec3 start, const avec3 end,
 			 const avec3 mins, const avec3 maxs, atrace_t *tr)
 {
 	const aplane_t	*hit = NULL;
-	double		enter = -1, leave = 1;
+	double		enter, enter_raw = -1e30, leave = 1;
 	int		startout = 0, getout = 0;
-	int		i, k;
+	int		i, k, isray;
+
+	isray = mins[0] == maxs[0] && mins[1] == maxs[1] && mins[2] == maxs[2];
 
 	for (i = 0; i < b->nfaces; i++)
 	{
@@ -593,6 +596,14 @@ void ArchBrush_TraceBox (const abrush_t *b, const avec3 start, const avec3 end,
 		d1 = DOT (start, pl->n) - dd;
 		d2 = DOT (end, pl->n) - dd;
 
+		/* A ray lying exactly in a face plane neither enters nor leaves through that
+		   face. Letting it count as a miss would let it pass between two brushes that
+		   share the face, so the brush's other faces decide. */
+		if (isray && fabs (d1) <= TOUCH_EPS && fabs (d2) <= TOUCH_EPS)
+		{
+			startout = 1;
+			continue;
+		}
 		if (d2 > 0)
 			getout = 1;
 		if (d1 >= -TOUCH_EPS)
@@ -605,12 +616,12 @@ void ArchBrush_TraceBox (const abrush_t *b, const avec3 start, const avec3 end,
 			continue;	/* stays behind this plane */
 		if (d1 > d2)
 		{
+			/* compare unclamped times: when several planes clamp to 0, the
+			   one entered last is the face the mover is really up against */
 			f = (d1 - ARCH_TRACE_EPS) / (d1 - d2);
-			if (f < 0)
-				f = 0;
-			if (f > enter)
+			if (f > enter_raw)
 			{
-				enter = f;
+				enter_raw = f;
 				hit = pl;
 			}
 		}
@@ -634,9 +645,15 @@ void ArchBrush_TraceBox (const abrush_t *b, const avec3 start, const avec3 end,
 		}
 		return;
 	}
-	if (enter < leave && enter > -1 && enter < tr->fraction && hit)
+	if (!hit)
+		return;
+	enter = enter_raw < 0 ? 0 : enter_raw;
+	/* between brushes hit at the same fraction, the one entered first wins: at a seam
+	   that is the brush whose surface the mover is on, not its neighbour's hidden side */
+	if (enter < leave && (enter < tr->fraction || (enter == tr->fraction && enter_raw < tr->enter_raw)))
 	{
 		tr->fraction = enter;
+		tr->enter_raw = enter_raw;
 		for (k = 0; k < 3; k++)
 			tr->normal[k] = hit->n[k];
 		tr->dist = hit->d;

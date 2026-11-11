@@ -14,6 +14,7 @@ option) any later version.
 #include "arch_brush.h"
 
 #define ARCH_HALF		2048	/* build volume is -ARCH_HALF..+ARCH_HALF on each axis */
+#define ARCH_SHELL		16	/* outer skin of the build volume that can never be carved */
 #define ARCH_ROOM_HALF		160	/* spawn room is -160..+160 on each axis */
 #define ARCH_CELL		256
 #define ARCH_GRID		16	/* cells per axis */
