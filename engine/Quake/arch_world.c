@@ -128,6 +128,7 @@ static int insert_brush (abrush_t *b)
 		}
 		id = W->num_slots++;
 	}
+	ArchBrush_BuildBevels (b);
 	W->brushes[id] = b;
 	W->stamps[id] = 0;
 	W->num_live++;
@@ -467,6 +468,44 @@ void ArchWorld_Trace (const avec3 start, const avec3 end, const avec3 mins, cons
 			continue;
 		ArchBrush_TraceBox (b, start, end, mins, maxs, tr);
 	}
+}
+
+void ArchWorld_MoveFloat (const float start[3], const float end[3], const float mins[3], const float maxs[3],
+			  atrace_t *tr, float endpos[3])
+{
+	avec3		s, e, mn, mx, p;
+	atrace_t	check;
+	double		f;
+	int		k, tries;
+
+	for (k = 0; k < 3; k++)
+	{
+		s[k] = start[k]; e[k] = end[k];
+		mn[k] = mins[k]; mx[k] = maxs[k];
+		endpos[k] = end[k];
+	}
+	ArchWorld_Trace (s, e, mn, mx, tr);
+	if (tr->fraction >= 1 || tr->startsolid)
+		return;
+
+	f = tr->fraction;
+	for (tries = 0; tries < 12; tries++)
+	{
+		for (k = 0; k < 3; k++)
+		{
+			endpos[k] = f > 0 ? (float) (s[k] + f * (e[k] - s[k])) : start[k];
+			p[k] = endpos[k];
+		}
+		if (f <= 0)
+			break;		/* back at the start, which was clear */
+		ArchWorld_Trace (p, p, mn, mx, &check);
+		if (!check.startsolid)
+			break;
+		f -= 0.1;
+		if (f < 0)
+			f = 0;
+	}
+	tr->fraction = f;
 }
 
 int ArchWorld_PointSolid (const avec3 p)

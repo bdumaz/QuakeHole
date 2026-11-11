@@ -217,7 +217,97 @@ void ArchBrush_Free (abrush_t *b)
 	for (i = 0; i < b->nfaces; i++)
 		free (b->faces[i].verts);
 	free (b->faces);
+	free (b->bevels);
 	free (b);
+}
+
+void ArchBrush_BuildBevels (abrush_t *b)
+{
+	int	i, j, v, k, sign, angled = 0, cap = 0;
+
+	free (b->bevels);
+	b->bevels = NULL;
+	b->nbevels = 0;
+	for (i = 0; i < b->nfaces; i++)
+	{
+		const double *n = b->faces[i].plane.n;
+		if (fabs (n[0]) < 0.999999 && fabs (n[1]) < 0.999999 && fabs (n[2]) < 0.999999)
+			angled = 1;
+	}
+	if (!angled)
+		return;		/* a box: its own faces and bounding box are exact */
+
+	for (i = 0; i < b->nfaces; i++)
+	{
+		const aface_t *f = &b->faces[i];
+
+		for (v = 0; v < f->nverts; v++)
+		{
+			const double	*p1 = f->verts[v], *p2 = f->verts[(v + 1) % f->nverts];
+			avec3		edge;
+			double		len;
+
+			for (k = 0; k < 3; k++)
+				edge[k] = p2[k] - p1[k];
+			len = sqrt (DOT (edge, edge));
+			if (len < 0.5)
+				continue;
+			for (k = 0; k < 3; k++)
+				edge[k] /= len;
+
+			for (k = 0; k < 3; k++)
+			{
+				for (sign = -1; sign <= 1; sign += 2)
+				{
+					avec3	axis = {0, 0, 0}, n;
+					double	d, nlen;
+					int	valid = 1, dup = 0, m, w;
+
+					axis[k] = sign;
+					cross (edge, axis, n);
+					nlen = sqrt (DOT (n, n));
+					if (nlen < 0.5)
+						continue;	/* the edge runs along this axis */
+					for (m = 0; m < 3; m++)
+						n[m] /= nlen;
+					if (fabs (n[0]) > 0.999999 || fabs (n[1]) > 0.999999 || fabs (n[2]) > 0.999999)
+						continue;	/* an axial plane: the bounding box already covers it */
+					d = DOT (p1, n);
+
+					/* the whole brush must be behind it */
+					for (j = 0; j < b->nfaces && valid; j++)
+						for (w = 0; w < b->faces[j].nverts && valid; w++)
+							if (DOT (b->faces[j].verts[w], n) - d > 0.1)
+								valid = 0;
+					if (!valid)
+						continue;
+					for (j = 0; j < b->nfaces && !dup; j++)
+					{
+						const aplane_t *pl = &b->faces[j].plane;
+						dup = fabs (pl->n[0] - n[0]) < 1e-4 && fabs (pl->n[1] - n[1]) < 1e-4 &&
+						      fabs (pl->n[2] - n[2]) < 1e-4 && fabs (pl->d - d) < 0.01;
+					}
+					for (j = 0; j < b->nbevels && !dup; j++)
+					{
+						const abevel_t *bv = &b->bevels[j];
+						dup = fabs (bv->n[0] - n[0]) < 1e-4 && fabs (bv->n[1] - n[1]) < 1e-4 &&
+						      fabs (bv->n[2] - n[2]) < 1e-4 && fabs (bv->d - d) < 0.01;
+					}
+					if (dup)
+						continue;
+					if (b->nbevels == cap)
+					{
+						cap = cap ? cap * 2 : 8;
+						b->bevels = (abevel_t *) realloc (b->bevels, cap * sizeof(abevel_t));
+					}
+					for (m = 0; m < 3; m++)
+						b->bevels[b->nbevels].n[m] = n[m];
+					b->bevels[b->nbevels].d = d;
+					b->nbevels++;
+				}
+			}
+		}
+	}
 }
 
 abrush_t *ArchBrush_FromPlanes (const aplane_t *planes, int nplanes)
@@ -415,6 +505,8 @@ abrush_t *ArchBrush_Clone (const abrush_t *b)
 		return NULL;
 	c = (abrush_t *) malloc (sizeof(*c));
 	*c = *b;
+	c->nbevels = 0;		/* rebuilt on demand; never shared */
+	c->bevels = NULL;
 	c->faces = (aface_t *) malloc (b->nfaces * sizeof(aface_t));
 	for (i = 0; i < b->nfaces; i++)
 	{
@@ -635,7 +727,9 @@ static int sweep_plane (sweep_t *s, const double *n, double d, const avec3 start
 	}
 	else
 	{
-		f = (d1 + ARCH_TRACE_EPS) / (d1 - d2);
+		/* the exact time: bringing it forward by the stopping margin would let a
+		   box that overlaps a block's side by less than the margin fall past its top */
+		f = d1 / (d1 - d2);
 		if (f > 1)
 			f = 1;
 		if (f < s->leave)
@@ -678,6 +772,10 @@ void ArchBrush_TraceBox (const abrush_t *b, const avec3 start, const avec3 end,
 			if (!sweep_plane (&s, n, -b->mins[k], start, end, mins, maxs))
 				return;
 		}
+		/* the same idea for edges that run diagonally */
+		for (i = 0; i < b->nbevels; i++)
+			if (!sweep_plane (&s, b->bevels[i].n, b->bevels[i].d, start, end, mins, maxs))
+				return;
 	}
 
 	if (!s.startout)

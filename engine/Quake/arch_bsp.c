@@ -24,7 +24,7 @@ typedef struct
 	aplane_t		*stack;		/* the planes on the path so far, then room for the bounds */
 	aplane_t		bounds[6];
 	void			(*emit) (abrush_t *brush);
-	int			count;
+	int			count, dropped;
 } convert_t;
 
 static void emit_region (convert_t *c, int depth)
@@ -34,7 +34,10 @@ static void emit_region (convert_t *c, int depth)
 	memcpy (&c->stack[depth], c->bounds, sizeof(c->bounds));
 	b = ArchBrush_FromPlanes (c->stack, depth + 6);
 	if (!b)
-		return;		/* a region thinner than the brush code keeps */
+	{
+		c->dropped++;	/* too thin for the brush code, or outside what it can represent */
+		return;
+	}
 	c->emit (b);
 	c->count++;
 }
@@ -52,7 +55,10 @@ static void walk (convert_t *c, int num, int depth)
 		return;
 	}
 	if (depth >= MAX_DEPTH)
+	{
+		c->dropped++;	/* deeper than any real map; whatever is below is lost */
 		return;
+	}
 	node = &c->nodes[num];
 	p = &c->planes[node->planenum];
 	for (side = 0; side < 2; side++)
@@ -70,7 +76,7 @@ static void walk (convert_t *c, int num, int depth)
 }
 
 int ArchBsp_Convert (const abspnode_t *nodes, const abspplane_t *planes, int head,
-		     const int mins[3], const int maxs[3], void (*emit) (abrush_t *brush))
+		     const int mins[3], const int maxs[3], void (*emit) (abrush_t *brush), int *dropped)
 {
 	convert_t	c;
 	int		k;
@@ -89,5 +95,7 @@ int ArchBsp_Convert (const abspnode_t *nodes, const abspplane_t *planes, int hea
 	}
 	walk (&c, head, 0);
 	free (c.stack);
+	if (dropped)
+		*dropped = c.dropped;
 	return c.count;
 }

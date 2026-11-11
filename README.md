@@ -96,7 +96,7 @@ The campaign and any other map still play in this engine: choose New Game from t
 
 When a campaign map loads, its solid space is rebuilt as the same kind of brushes the sandbox uses, and collision with the world runs on those. This is groundwork for digging into campaign maps, which is not possible yet: for now they cannot be changed, and building, the sandbox's free weapons and its damage rules stay in the sandbox.
 
-Two differences from original Quake are known. A few invisible barriers that mappers placed are gone, so the odd spot is reachable that was not. And movers collide with their real size where the original uses three fixed sizes, which can matter in very tight spaces. Set `arch_campaign 0` and restart the map to get the original collision back.
+Three differences from original Quake are known. A few invisible barriers that mappers placed are gone, so the odd spot is reachable that was not. Movers collide with their real size where the original uses three fixed sizes, which can matter in very tight spaces. And on two maps (E1M5 and E4M7) rockets and nails explode against the sky where the original removes them silently. Set `arch_campaign 0` and restart the map to get the original collision back.
 
 ## Editing from the console
 

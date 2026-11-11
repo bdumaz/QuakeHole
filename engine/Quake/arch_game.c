@@ -44,7 +44,7 @@ static void convert_campaign_map (void)
 	int		numnodes = hull->lastclipnode + 1, numplanes = sv.worldmodel->numplanes;
 	abspnode_t	*nodes;
 	abspplane_t	*planes;
-	int		mins[3], maxs[3], i, k, count;
+	int		mins[3], maxs[3], i, k, count, dropped = 0;
 	double		start = Sys_DoubleTime ();
 
 	if (numnodes < 1 || numplanes < 1)
@@ -70,10 +70,16 @@ static void convert_campaign_map (void)
 		maxs[k] = (int) ceil (sv.worldmodel->maxs[k]) + 256;
 	}
 	ArchWorld_BeginCustom (mins, maxs);
-	count = ArchBsp_Convert (nodes, planes, hull->firstclipnode, mins, maxs, insert_converted);
+	count = ArchBsp_Convert (nodes, planes, hull->firstclipnode, mins, maxs, insert_converted, &dropped);
 	free (nodes);
 	free (planes);
-	campaign_ready = count > 0;
+	if (dropped || !count)
+	{
+		/* an incomplete conversion would have holes: keep the map's own collision */
+		Con_Printf ("arch: %s could not be rebuilt as brushes (%d regions lost); using its own collision\n", sv.name, dropped);
+		return;
+	}
+	campaign_ready = true;
 	Con_Printf ("arch: %s rebuilt as %d brushes in %.0f ms\n", sv.name, count, (Sys_DoubleTime () - start) * 1000);
 }
 
@@ -453,7 +459,10 @@ static void Arch_Reset_f (void)
 
 static void Arch_Stats_f (void)
 {
-	Con_Printf ("arch: %d brushes, volume %.0f, %d pads\n", ArchWorld_BrushCount (), ArchWorld_SolidVolume (), ArchPads_Count ());
+	if (Arch_Active () || !sv.active)
+		Con_Printf ("arch: %d brushes, volume %.0f, %d pads\n", ArchWorld_BrushCount (), ArchWorld_SolidVolume (), ArchPads_Count ());
+	else
+		Con_Printf ("arch: this map as brushes: %d, volume %.0f\n", ArchWorld_BrushCount (), ArchWorld_SolidVolume ());
 }
 
 static void Arch_Export_f (void)

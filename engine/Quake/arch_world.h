@@ -42,6 +42,12 @@ int    ArchWorld_BoxFromCorners (const int a[3], const int b[3], int mins[3], in
 
 /* initialises *tr itself */
 void   ArchWorld_Trace (const avec3 start, const avec3 end, const avec3 mins, const avec3 maxs, atrace_t *tr);
+/* A move for a caller that keeps positions as 32-bit floats, as the engine does.
+   Like Trace, and also gives the end position as floats. Rounding to float can
+   put a stopping point on the wrong side of a slanted surface; the move is then
+   shortened, a tenth at a time, until its end is clear. tr->fraction is updated. */
+void   ArchWorld_MoveFloat (const float start[3], const float end[3], const float mins[3], const float maxs[3],
+			    atrace_t *tr, float endpos[3]);
 int    ArchWorld_PointSolid (const avec3 p);	/* inside or on a brush, or outside the build volume */
 
 int    ArchWorld_Revision (void);		/* changes whenever a brush is added or removed */

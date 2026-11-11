@@ -24,7 +24,10 @@ typedef struct { int p[3][3]; avec3 n; double d; } aplane_t;
 /* verts are clockwise when seen from outside the brush */
 typedef struct { aplane_t plane; int slot; int nverts; avec3 *verts; } aface_t;
 
-typedef struct { int nfaces; aface_t *faces; avec3 mins, maxs; } abrush_t;
+/* an extra plane used only when sweeping a box against the brush; see ArchBrush_BuildBevels */
+typedef struct { avec3 n; double d; } abevel_t;
+
+typedef struct { int nfaces; aface_t *faces; avec3 mins, maxs; int nbevels; abevel_t *bevels; } abrush_t;
 
 int       ArchPlane_FromPoints (const int a[3], const int b[3], const int c[3], aplane_t *out); /* 0 if collinear */
 void      ArchPlane_Flip (const aplane_t *in, aplane_t *out);
@@ -33,6 +36,12 @@ abrush_t *ArchBrush_FromPlanes (const aplane_t *planes, int nplanes);	/* NULL if
 abrush_t *ArchBrush_Box (const int mins[3], const int maxs[3]);		/* NULL if any maxs[i] <= mins[i] */
 abrush_t *ArchBrush_Prism (const int (*poly)[3], int npoly, const int extrude[3]); /* NULL if degenerate */
 abrush_t *ArchBrush_Clone (const abrush_t *b);
+/* Prepares a brush with angled faces for accurate box sweeps. Pushing each face out
+   by the box overstates how far an edge between angled faces reaches. For every
+   edge, the planes through it that are parallel to a world axis and have the whole
+   brush behind them are kept; sweeping against those as well cuts the overstated
+   edges back. Brushes kept in a world get this automatically. */
+void      ArchBrush_BuildBevels (abrush_t *b);
 void      ArchBrush_Free (abrush_t *b);						/* NULL is allowed */
 double    ArchBrush_Volume (const abrush_t *b);
 int       ArchBrush_PointInside (const abrush_t *b, const avec3 p);	/* strictly inside by more than ARCH_ON_EPS */

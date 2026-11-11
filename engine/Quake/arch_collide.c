@@ -14,36 +14,42 @@ trace_t ArchCollide_ClipMove (edict_t *ent, vec3_t start, vec3_t mins, vec3_t ma
 {
 	trace_t		trace;
 	atrace_t	tr;
-	avec3		s, e, mn, mx;
+	float		endpos[3];
 	int		i;
 
-	for (i = 0; i < 3; i++)
-	{
-		s[i] = start[i];
-		e[i] = end[i];
-		mn[i] = mins[i];
-		mx[i] = maxs[i];
-	}
-	ArchWorld_Trace (s, e, mn, mx, &tr);
+	ArchWorld_MoveFloat (start, end, mins, maxs, &tr, endpos);
 
 	memset (&trace, 0, sizeof(trace));
 	trace.fraction = (float) tr.fraction;
 	trace.startsolid = tr.startsolid ? true : false;
 	trace.allsolid = tr.allsolid ? true : false;
 	trace.inopen = true;
+	VectorCopy (endpos, trace.endpos);
 	if (tr.fraction < 1)
 	{
 		for (i = 0; i < 3; i++)
-		{
-			trace.endpos[i] = (float) (s[i] + tr.fraction * (e[i] - s[i]));
 			trace.plane.normal[i] = (float) tr.normal[i];
-		}
 		trace.plane.dist = (float) tr.dist;
 	}
-	else
-		VectorCopy (end, trace.endpos);
 	if (tr.fraction < 1 || tr.startsolid)
 		trace.ent = ent;
+
+	/* Sight lines: the game code asks whether a line crossed a water surface
+	   (monsters cannot see through one). Liquids are not brushes, so the map's
+	   own point tree answers that for the part of the line that was open. */
+	if (!Arch_Active () && sv.worldmodel && mins[0] == maxs[0] && mins[1] == maxs[1] && mins[2] == maxs[2])
+	{
+		hull_t	*hull = &sv.worldmodel->hulls[0];
+		trace_t	liquid;
+
+		memset (&liquid, 0, sizeof(liquid));
+		liquid.fraction = 1;
+		liquid.allsolid = true;
+		VectorCopy (trace.endpos, liquid.endpos);
+		SV_RecursiveHullCheck (hull, hull->firstclipnode, 0, 1, start, trace.endpos, &liquid);
+		trace.inopen = liquid.inopen;
+		trace.inwater = liquid.inwater;
+	}
 	return trace;
 }
 
