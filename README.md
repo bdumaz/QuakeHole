@@ -2,12 +2,14 @@
 
 *Quake, but weapons make holes.*
 
-A live level-building prototype on the open-source Quake engine. You stand inside the level and shape it, then run, fly and shoot through what you built, with no compile step in between.
+The full original campaign with hole-making weapons, and a live level-building prototype on the open-source Quake engine. You stand inside the level and shape it, then run, fly and shoot through what you built, with no compile step in between.
 
 The game opens on its main menu, titled QuakeHole:
 
 - **Single Player** and **Multiplayer** start Quake as normal, except that every weapon digs into the level.
 - **Build Mode** puts you in a room made of live-editable brushes, where you carve holes, pull out blocks, cut arches and place jump pads with the mouse. From there you can load any map through the console, for example `map E1M1`, and keep building in it. Levels in the cube room export as standard `.map` files; maps cannot be saved in this version yet.
+
+This is the very first version of the game. It has been entirely vibe coded by a moron. It has not been thoroughly tested. This is for fun.
 
 ## What you need
 
