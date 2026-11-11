@@ -1,0 +1,9 @@
+engine/Windows/VisualStudio/Build-*/
+build/
+quakepath.txt
+game/arch/config.cfg
+game/arch/qconsole.log
+game/arch/*.png
+game/arch/maps/
+*.user
+.superpowers/
