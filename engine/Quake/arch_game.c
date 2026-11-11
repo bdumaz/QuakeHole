@@ -86,6 +86,7 @@ static void convert_campaign_map (void)
 void Arch_ServerSpawn (void)
 {
 	campaign_ready = false;
+	ArchGame_NewMap ();	/* nothing noted in the last map may be dug in this one */
 	if (!q_strcasecmp (sv.modelname, ARCH_BSPNAME))
 	{
 		ArchWorld_Select (ARCH_WORLD_SANDBOX);	/* the sandbox level is kept as it was left */
@@ -152,6 +153,7 @@ static int		num_dig_events;
 static adwell_t		dig_dwell;
 static int		dig_boxes[ARCH_DIG_MAX_BOXES][6];
 static double		dig_refused_time = -10;
+static qboolean		rescue_pending;
 
 /* The game code reports explosions and beams from inside its own functions, in
    the middle of physics. They are only noted here and dug the next time the
@@ -215,6 +217,45 @@ void ArchGame_NewMap (void)
 	ArchDig_DwellReset (&dig_dwell);
 	num_dig_events = 0;
 	dig_refused_time = -10;
+	rescue_pending = true;
+}
+
+static qboolean dig_box (const int mins[3], const int maxs[3], int look);
+int SV_HullPointContents (hull_t *hull, int num, vec3_t p);
+
+/* Holes are not kept in savegames but positions are, so a game saved inside a
+   tunnel loads with the player in solid rock. Dig them a space to stand in. */
+static void rescue_buried_player (edict_t *ent)
+{
+	avec3	p, mn, mx;
+	atrace_t tr;
+	vec3_t	lo, hi;
+	int	mins[3], maxs[3], k, look, revision = ArchWorld_Revision ();
+
+	for (k = 0; k < 3; k++)
+	{
+		p[k] = ent->v.origin[k];
+		mn[k] = ent->v.mins[k];
+		mx[k] = ent->v.maxs[k];
+	}
+	ArchWorld_Trace (p, p, mn, mx, &tr);
+	if (!tr.startsolid || SV_HullPointContents (&sv.worldmodel->hulls[0], sv.worldmodel->hulls[0].firstclipnode, ent->v.origin) != CONTENTS_SOLID)
+		return;
+	for (k = 0; k < 3; k++)
+	{
+		mins[k] = ARCH_DIG_CELL * ((int) floor ((p[k] + mn[k]) / ARCH_DIG_CELL) - 1);
+		maxs[k] = ARCH_DIG_CELL * ((int) ceil ((p[k] + mx[k]) / ARCH_DIG_CELL) + 1);
+		lo[k] = (float) mins[k];
+		hi[k] = (float) maxs[k];
+	}
+	look = ArchSurf_LookFor (ent->v.origin);
+	dig_box (mins, maxs, look);
+	if (ArchWorld_Revision () != revision)
+	{
+		ArchSurf_NoteDig (lo, hi, look);
+		ArchSurf_Commit ();
+		Con_Printf ("arch: you were inside solid rock (a game saved in a tunnel?); dug you out\n");
+	}
 }
 
 /* removes one box of solid; false if the brush limit refused it. In a campaign
@@ -226,6 +267,11 @@ static qboolean dig_box (const int mins[3], const int maxs[3], int look)
 
 	if (!box)
 		return true;
+	if (!Arch_Active () && ArchSurf_BoxCutsSky (mins, maxs))
+	{
+		ArchBrush_Free (box);
+		return true;	/* the rock behind the sky stays, so the sky stays solid */
+	}
 	for (i = 0; i < box->nfaces; i++)
 		box->faces[i].plane.tag = look;
 	ok = ArchWorld_Carve (box);
@@ -246,7 +292,7 @@ static void dig_blast (const float *pos)
 	avec3	centre;
 	vec3_t	at, lo, hi;
 	double	radius = arch_dig_radius.value;
-	int	n, i, k, look = 0;
+	int	n, i, k, look = 0, revision;
 
 	if (radius < ARCH_DIG_CELL) radius = ARCH_DIG_CELL;
 	if (radius > ARCH_DIG_MAX_RADIUS) radius = ARCH_DIG_MAX_RADIUS;
@@ -257,14 +303,14 @@ static void dig_blast (const float *pos)
 		hi[k] = pos[k] + (float) radius + ARCH_DIG_CELL;
 	}
 	if (!Arch_Active ())
-	{
 		look = ArchSurf_LookFor (at);
-		ArchSurf_NoteDig (lo, hi, look);
-	}
+	revision = ArchWorld_Revision ();
 	n = ArchDig_Crater (centre, radius, dig_boxes, ARCH_DIG_MAX_BOXES);
 	for (i = 0; i < n; i++)
 		if (!dig_box (dig_boxes[i], dig_boxes[i] + 3, look))
 			break;
+	if (!Arch_Active () && ArchWorld_Revision () != revision)
+		ArchSurf_NoteDig (lo, hi, look);	/* only a blast that removed something leaves a hole to draw */
 }
 
 /* a lightning beam report: time how long it stays on one cube, and remove the cube when the time is up */
@@ -305,6 +351,10 @@ static void dig_beam (const float *v)
 	ArchDig_CellBox (cell, mins, maxs);
 	revision = ArchWorld_Revision ();
 	if (!Arch_Active ())
+		look = ArchSurf_LookFor (end);
+	if (!dig_box (mins, maxs, look) || ArchWorld_Revision () == revision)
+		return;		/* refused, or nothing there could be removed (sky, or the world's outer shell) */
+	if (!Arch_Active ())
 	{
 		vec3_t lo, hi;
 		for (k = 0; k < 3; k++)
@@ -312,11 +362,8 @@ static void dig_beam (const float *v)
 			lo[k] = (float) mins[k];
 			hi[k] = (float) maxs[k];
 		}
-		look = ArchSurf_LookFor (end);
 		ArchSurf_NoteDig (lo, hi, look);
 	}
-	if (!dig_box (mins, maxs, look) || ArchWorld_Revision () == revision)
-		return;		/* refused, or nothing there could be removed (sky, or the world's outer shell) */
 	for (k = 0; k < 3; k++)
 		centre[k] = (mins[k] + maxs[k]) * 0.5f;
 	/* the cube bursts: grey chips and a brighter flash */
@@ -328,6 +375,13 @@ static void run_dig_events (void)
 {
 	int	i, revision = ArchWorld_Revision ();
 
+	if (!Arch_Active () && cl.worldmodel != sv.worldmodel)
+	{
+		/* the map is still loading on the drawing side: a dig now would carve
+		   the brushes without cutting the surfaces in front of them */
+		num_dig_events = 0;
+		return;
+	}
 	for (i = 0; i < num_dig_events; i++)
 	{
 		if (dig_events[i].kind == ARCH_DIG_BLAST)
@@ -378,7 +432,16 @@ void ArchGame_PlayerFrame (edict_t *ent)
 
 	run_dig_events ();
 	if (!Arch_Active ())
-		return;		/* a campaign map: digging only, none of the sandbox's rules */
+	{
+		/* a campaign map: digging only, none of the sandbox's rules */
+		/* wait until the player has actually been placed in the map */
+		if (rescue_pending && cl.worldmodel == sv.worldmodel && svs.clients[0].spawned && ent->v.health > 0)
+		{
+			rescue_pending = false;
+			rescue_buried_player (ent);
+		}
+		return;
+	}
 	ArchBuild_PlayerFrame (ent);
 	if (!ArchBuild_Active ())
 		touch_pads (ent);

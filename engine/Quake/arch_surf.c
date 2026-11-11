@@ -124,6 +124,43 @@ static void poly_from_gl (const glpoly_t *gp, apoly_t *out)
 			out->v[i][k] = gp->verts[i][k];
 }
 
+/* The sky is a surface like any other with solid behind it, and on most maps
+   that solid is ordinary rock. Sky surfaces are never cut, so the rock behind
+   them must never be removed: a box that would cut one is not dug at all. */
+qboolean ArchSurf_BoxCutsSky (const int mins[3], const int maxs[3])
+{
+	qmodel_t	*world = cl.worldmodel;
+	apoly_t		poly, pieces[ARCH_POLY_MAX_PIECES];
+	avec3		normal;
+	int		i, k;
+
+	if (!world)
+		return false;
+	for (i = 0; i < world->nummodelsurfaces; i++)
+	{
+		msurface_t	*surf = &world->surfaces[world->firstmodelsurface + i];
+		glpoly_t	*gp;
+
+		if (!(surf->flags & SURF_DRAWSKY))
+			continue;
+		if (surf->mins[0] > maxs[0] + 1 || surf->maxs[0] < mins[0] - 1 ||
+		    surf->mins[1] > maxs[1] + 1 || surf->maxs[1] < mins[1] - 1 ||
+		    surf->mins[2] > maxs[2] + 1 || surf->maxs[2] < mins[2] - 1)
+			continue;
+		for (k = 0; k < 3; k++)
+			normal[k] = (surf->flags & SURF_PLANEBACK) ? -surf->plane->normal[k] : surf->plane->normal[k];
+		for (gp = surf->polys; gp; gp = gp->next)
+		{
+			if (gp->numverts > ARCH_POLY_MAX_VERTS - 8)
+				return true;	/* cannot tell: leave it alone */
+			poly_from_gl (gp, &poly);
+			if (ArchPoly_SubtractBox (&poly, normal, mins, maxs, pieces) != ARCH_POLY_UNTOUCHED)
+				return true;
+		}
+	}
+	return false;
+}
+
 /* Removes from the map's surfaces whatever had the box mins..maxs of solid behind it. */
 void ArchSurf_Dig (const int mins[3], const int maxs[3])
 {
@@ -279,28 +316,40 @@ int ArchSurf_LookFor (vec3_t pos)
 {
 	qmodel_t	*world = cl.worldmodel;
 	texture_t	*best = NULL;
-	float		best_dist = 128, light;
+	float		best_dist, light;
 	int		i, k;
+
+	int		pass;
 
 	if (!world)
 		return 0;
-	/* digging deeper into an existing hole keeps that hole's look: the walls it
-	   came from are gone, and whatever else is nearest would be a poor guess */
-	for (i = num_digs - 1; i >= 0; i--)
+	/* Pass 0: a wall right at the point, even one already partly dug, decides.
+	   Failing that, a point inside an existing hole keeps that hole's look: the
+	   walls it came from are gone and whatever else is nearest is a poor guess.
+	   Pass 1: otherwise the nearest wall within reach. */
+	for (pass = 0; pass < 2 && !best; pass++)
 	{
-		for (k = 0; k < 3; k++)
-			if (pos[k] < digs[i].mins[k] || pos[k] > digs[i].maxs[k])
-				break;
-		if (k == 3 && digs[i].look)
-			return digs[i].look;
+	if (pass == 1)
+	{
+		for (i = num_digs - 1; i >= 0; i--)
+		{
+			for (k = 0; k < 3; k++)
+				if (pos[k] < digs[i].mins[k] || pos[k] > digs[i].maxs[k])
+					break;
+			if (k == 3 && digs[i].look)
+				return digs[i].look;
+		}
 	}
+	best_dist = pass ? 128.0f : 24.0f;
 	for (i = 0; i < world->nummodelsurfaces; i++)
 	{
 		msurface_t	*surf = &world->surfaces[world->firstmodelsurface + i];
 		float		d, size[3];
 
-		if (surf->flags & (SURF_DRAWTURB | SURF_DRAWSKY | SURF_NOTEXTURE | SURF_ARCHDUG))
+		if (surf->flags & (SURF_DRAWTURB | SURF_DRAWSKY | SURF_NOTEXTURE))
 			continue;
+		if ((surf->flags & SURF_ARCHDUG) && (pass || !frags || !frags[i]))
+			continue;	/* dug away entirely, or only wanted at close range */
 		/* trim, lights and other small details make poor rock */
 		VectorSubtract (surf->maxs, surf->mins, size);
 		if ((size[0] >= 32) + (size[1] >= 32) + (size[2] >= 32) < 2)
@@ -316,6 +365,7 @@ int ArchSurf_LookFor (vec3_t pos)
 			best_dist = d;
 			best = surf->texinfo->texture;
 		}
+	}
 	}
 	if (!best)
 	{
@@ -353,8 +403,27 @@ int ArchSurf_LookFor (vec3_t pos)
 void ArchSurf_NoteDig (const float mins[3], const float maxs[3], int look)
 {
 	digrec_t	*d;
-	int		k;
+	int		k, i;
 
+	/* a dig beside a recent one of the same look just widens that record, while it stays compact */
+	for (i = num_digs - 1; i >= 0 && i >= num_digs - 8; i--)
+	{
+		d = &digs[i];
+		if (d->look != look)
+			continue;
+		for (k = 0; k < 3; k++)
+			if (mins[k] > d->maxs[k] + 1 || maxs[k] < d->mins[k] - 1 ||
+			    (maxs[k] > d->maxs[k] ? maxs[k] : d->maxs[k]) - (mins[k] < d->mins[k] ? mins[k] : d->mins[k]) > 384)
+				break;
+		if (k < 3)
+			continue;
+		for (k = 0; k < 3; k++)
+		{
+			if (mins[k] < d->mins[k]) d->mins[k] = mins[k];
+			if (maxs[k] > d->maxs[k]) d->maxs[k] = maxs[k];
+		}
+		return;
+	}
 	if (num_digs == MAX_DIGS)
 	{
 		/* out of room: let the last record grow to cover the new dig */
@@ -444,27 +513,49 @@ static void rebuild_meshes (void)
 	for (id = 0; id < ArchWorld_SlotCount (); id++)
 	{
 		const abrush_t	*b = ArchWorld_Brush (id);
-		int		near_look = 0;
+		int		near_brush = 0, v;
 
 		if (!b || b->locked)
 			continue;
-		for (d = 0; d < num_digs && !near_look; d++)
+		for (d = num_digs - 1; d >= 0 && !near_brush; d--)
 		{
 			for (k = 0; k < 3; k++)
 				if (b->mins[k] > digs[d].maxs[k] + 1 || b->maxs[k] < digs[d].mins[k] - 1)
 					break;
-			if (k == 3)
-				near_look = digs[d].look;
+			near_brush = k == 3;
 		}
-		if (!near_look)
+		if (!near_brush)
 			continue;
+		/* converted regions are large: of a brush near a dig, only the faces that
+		   themselves reach a dug area can have been exposed */
 		for (i = 0; i < b->nfaces; i++)
 		{
-			int look = b->faces[i].plane.tag;
+			const aface_t	*f = &b->faces[i];
+			double		fmin[3], fmax[3];
+			int		look = f->plane.tag, near_look = 0;
+
+			for (k = 0; k < 3; k++)
+				fmin[k] = fmax[k] = f->verts[0][k];
+			for (v = 1; v < f->nverts; v++)
+				for (k = 0; k < 3; k++)
+				{
+					if (f->verts[v][k] < fmin[k]) fmin[k] = f->verts[v][k];
+					if (f->verts[v][k] > fmax[k]) fmax[k] = f->verts[v][k];
+				}
+			for (d = num_digs - 1; d >= 0 && !near_look; d--)	/* newest first */
+			{
+				for (k = 0; k < 3; k++)
+					if (fmin[k] > digs[d].maxs[k] + 1 || fmax[k] < digs[d].mins[k] - 1)
+						break;
+				if (k == 3)
+					near_look = digs[d].look ? digs[d].look : -1;
+			}
+			if (!near_look)
+				continue;
 			if (look < 1 || look > num_looks)
 				look = near_look;
 			if (look >= 1 && look <= num_looks)
-				add_face (&b->faces[i], look);
+				add_face (f, look);
 		}
 	}
 	mesh_revision = ArchWorld_Revision ();
@@ -489,6 +580,7 @@ void ArchSurf_DrawHoles (void)
 	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
 	glEnable (GL_POLYGON_OFFSET_FILL);
 	glPolygonOffset (1, 2);
+	glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);	/* the engine's default is replace, which ignores the colour */
 
 	for (i = 1; i <= num_looks; i++)
 	{
@@ -504,6 +596,7 @@ void ArchSurf_DrawHoles (void)
 		rs_brushpolys += m->count / 3;
 	}
 
+	glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 	glPolygonOffset (0, 0);
 	glDisable (GL_POLYGON_OFFSET_FILL);
 	glDisableClientState (GL_VERTEX_ARRAY);

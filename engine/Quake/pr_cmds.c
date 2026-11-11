@@ -860,7 +860,8 @@ static void PF_checkclient (void)
 	VectorAdd (self->v.origin, self->v.view_ofs, view);
 	leaf = Mod_PointInLeaf (view, sv.worldmodel);
 	l = (leaf - sv.worldmodel->leafs) - 1;
-	if ( (l < 0) || !(checkpvs[l>>3] & (1 << (l & 7))) )
+	if (!ArchSurf_Dug () /* QUAKEARCH: a hole can join rooms the map says cannot see each other */ &&
+	    ((l < 0) || !(checkpvs[l>>3] & (1 << (l & 7)))) )
 	{
 		c_notvis++;
 		RETURN_EDICT(sv.edicts);

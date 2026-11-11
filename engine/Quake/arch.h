@@ -46,6 +46,7 @@ qboolean	ArchSurf_Dug (void);				/* the current map has been dug since it starte
 void		ArchSurf_NewMap (void);				/* a map is starting: forget all cuts */
 int		ArchSurf_LookFor (vec3_t pos);			/* texture and brightness for a dig at this point */
 void		ArchSurf_NoteDig (const float mins[3], const float maxs[3], int look);
+qboolean	ArchSurf_BoxCutsSky (const int mins[3], const int maxs[3]);	/* removing this box would open the sky */
 void		ArchSurf_Dig (const int mins[3], const int maxs[3]);	/* cut the map's surfaces where this box of solid went */
 void		ArchSurf_Commit (void);				/* after the last box of a dig */
 int		ArchSurf_VertexCount (void);
