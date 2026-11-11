@@ -1,5 +1,5 @@
 /*
-QuakeArch - the inside of holes dug in a campaign map, as triangle meshes.
+QuakeHole - the inside of holes dug in a campaign map, as triangle meshes.
 No engine dependencies.
 
 This program is free software; you can redistribute it and/or modify it

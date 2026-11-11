@@ -1,5 +1,5 @@
 /*
-QuakeArch - weapon digging: the crater an explosion removes, the cube the
+QuakeHole - weapon digging: the crater an explosion removes, the cube the
 lightning gun is working on, and recognising both in what the game code
 reports to the engine.
 No engine dependencies.

@@ -1,5 +1,5 @@
 /*
-QuakeArch - the build-mode input gesture: what the left button, right button,
+QuakeHole - the build-mode input gesture: what the left button, right button,
 wheel and mouse movement mean together. Also holds the current cursor size.
 No engine dependencies.
 

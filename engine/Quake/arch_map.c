@@ -1,5 +1,5 @@
 /*
-QuakeArch - writes the brush world as standard Quake .map text.
+QuakeHole - writes the brush world as standard Quake .map text.
 No engine dependencies.
 
 This program is free software; you can redistribute it and/or modify it
@@ -14,7 +14,7 @@ int ArchMap_Write (FILE *f, const char *const texnames[ARCH_NUM_SLOTS], const in
 {
 	int	id, i;
 
-	fprintf (f, "// QuakeArch export\n{\n\"classname\" \"worldspawn\"\n");
+	fprintf (f, "// QuakeHole export\n{\n\"classname\" \"worldspawn\"\n");
 	for (id = 0; id < ArchWorld_SlotCount (); id++)
 	{
 		const abrush_t *b = ArchWorld_Brush (id);

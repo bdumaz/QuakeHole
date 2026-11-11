@@ -1,5 +1,5 @@
 /*
-QuakeArch - convex brush maths.
+QuakeHole - convex brush maths.
 No engine dependencies: C standard library only.
 
 This program is free software; you can redistribute it and/or modify it

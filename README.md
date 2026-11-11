@@ -1,4 +1,6 @@
-# QuakeArch
+# QuakeHole
+
+*Quake, but weapons make holes.*
 
 A live level-building prototype on the open-source Quake engine. You stand inside the level and shape it, then run, fly and shoot through what you built, with no compile step in between.
 
@@ -9,7 +11,7 @@ The game opens on its main menu, titled QuakeHole:
 
 ## What you need
 
-- **Your own copy of Quake.** QuakeArch ships none of id Software's game data. It reads `id1\pak0.pak` and `id1\pak1.pak` from your installation (Steam, GOG or an original CD). The full game is required; the shareware version lacks several weapon models.
+- **Your own copy of Quake.** QuakeHole ships none of id Software's game data. It reads `id1\pak0.pak` and `id1\pak1.pak` from your installation (Steam, GOG or an original CD). The full game is required; the shareware version lacks several weapon models.
 - **Windows 10 or 11, 64-bit.**
 - **Visual Studio 2019 or later** with the "Desktop development with C++" workload, to build the engine.
 
@@ -17,7 +19,7 @@ The game opens on its main menu, titled QuakeHole:
 
 ```
 tools\build.bat      builds the engine
-run.bat              starts QuakeArch
+run.bat              starts QuakeHole
 ```
 
 `run.bat` looks for your pak files in this order:
@@ -173,9 +175,8 @@ tools\selftest.bat boot      scripted in-engine checks: boot, collide, render, r
 
 Selftests write `game\arch\qconsole.log` and screenshots into `game\arch`.
 
-- `engine/` is QuakeSpasm 0.97.0 (see `engine/UPSTREAM.txt`). QuakeArch code is in `engine/Quake/arch_*.c`; changes to QuakeSpasm's own files are short hooks marked `// QUAKEARCH`.
-- `docs/superpowers/specs/` holds the design.
+- `engine/` is QuakeSpasm 0.97.0 (see `engine/UPSTREAM.txt`). QuakeHole code is in `engine/Quake/arch_*.c`; changes to QuakeSpasm's own files are short hooks marked `// QUAKEARCH`.
 
 ## Licence
 
-QuakeArch is free software under the GNU General Public License, version 2 or later, as is QuakeSpasm, which it is built on. See `LICENSE.txt`. Quake is a trademark of id Software; this project is not affiliated with id Software or Bethesda.
+QuakeHole is free software under the GNU General Public License, version 2 or later, as is QuakeSpasm, which it is built on. See `LICENSE.txt`. Quake is a trademark of id Software; this project is not affiliated with id Software or Bethesda.

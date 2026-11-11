@@ -1,5 +1,5 @@
 /*
-QuakeArch - build mode: the mode toggle, input routing, the per-frame cursor,
+QuakeHole - build mode: the mode toggle, input routing, the per-frame cursor,
 the action wheel, applying the selected action, and drawing the cursor,
 previews, pads, wheel and HUD line.
 The rules themselves live in arch_cursor.c, arch_gesture.c, arch_wheel.c and

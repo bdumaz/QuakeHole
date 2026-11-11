@@ -610,7 +610,7 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, int bpp, qb
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, fsaa > 0 ? 1 : 0);
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, fsaa);
 
-	q_snprintf(caption, sizeof(caption), "QuakeSpasm " QUAKESPASM_VER_STRING);
+	q_snprintf(caption, sizeof(caption), "QuakeHole"); // QUAKEARCH: the game's own name
 
 #if defined(USE_SDL2)
 	/* Create the window if needed, hidden */

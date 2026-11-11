@@ -2,5 +2,6 @@ Upstream: https://github.com/sezero/quakespasm.git
 Tag:      quakespasm-0.97.0
 Commit:   e8795a79273f2823661727265d0617106e282bea
 Removed:  .github, MacOSX, Linux, Windows/SDL, Windows/VS2005, Windows/CodeBlocks
-QuakeArch changes are in Quake/arch_* and at hooks marked "// QUAKEARCH".
+QuakeHole changes are in Quake/arch_* and at hooks marked "// QUAKEARCH"
+(the project was first called QuakeArch).
 Exe:      Windows/VisualStudio/Build-quakespasm-sdl2/x64/Release/quakespasm-sdl2.exe (tools\build.bat)

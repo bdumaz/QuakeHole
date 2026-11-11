@@ -1,5 +1,5 @@
 /*
-QuakeArch - the build-mode input gesture.
+QuakeHole - the build-mode input gesture.
 No engine dependencies.
 
 This program is free software; you can redistribute it and/or modify it

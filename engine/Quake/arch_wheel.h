@@ -1,5 +1,5 @@
 /*
-QuakeArch - the build action wheel: which segment the mouse is pointing at.
+QuakeHole - the build action wheel: which segment the mouse is pointing at.
 No engine dependencies.
 
 This program is free software; you can redistribute it and/or modify it

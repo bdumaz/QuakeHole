@@ -1,5 +1,5 @@
 /*
-QuakeArch - writes the brush world as standard Quake .map text.
+QuakeHole - writes the brush world as standard Quake .map text.
 No engine dependencies.
 
 This program is free software; you can redistribute it and/or modify it

@@ -1,5 +1,5 @@
 /*
-QuakeArch - build cursor geometry: where the cursor rectangle sits on a
+QuakeHole - build cursor geometry: where the cursor rectangle sits on a
 surface, the box an action applies to, and how the cursor size steps.
 No engine dependencies.
 

@@ -314,13 +314,33 @@ static void M_DrawCredits (void)
 	GL_SetCanvas (CANVAS_MENU);
 }
 
+// QUAKEARCH: the game's name across the top of the screen, and its subtitle
+static void M_DrawTitle (void)
+{
+	static const char *title = "QuakeHole";
+	static const char *subtitle = "Quake, but weapons make holes.";
+	int	big, small, top;
+
+	big = glheight / 160;		/* 4.5x the console font at 720 lines */
+	if (big < 2)
+		big = 2;
+	small = big / 2;
+	if (small < 1)
+		small = 1;
+	top = glheight / 24;
+
+	GL_SetCanvas (CANVAS_DEFAULT);
+	M_DrawBigText ((glwidth - (int) strlen (title) * 8 * big) / 2, top, big, title, true);
+	M_DrawBigText ((glwidth - (int) strlen (subtitle) * 8 * small) / 2, top + 8 * big + small * 4, small, subtitle, false);
+	GL_SetCanvas (CANVAS_MENU);
+}
+
 void M_Main_Draw (void)
 {
 	int		f;
 	qpic_t	*p;
 
 	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
-	M_DrawBigText ((320 - 9 * 8 * 2) / 2, 8, 2, "QuakeHole", true); // QUAKEARCH: the game's title
 
 	// QUAKEARCH: the stock menu picture, split after its second entry to make room for Build Mode
 	p = Draw_CachePic ("gfx/mainmenu.lmp");
@@ -332,6 +352,7 @@ void M_Main_Draw (void)
 
 	M_DrawTransPic (54, 32 + m_main_cursor * 20,Draw_CachePic( va("gfx/menudot%i.lmp", f+1 ) ) );
 
+	M_DrawTitle (); // QUAKEARCH
 	M_DrawCredits (); // QUAKEARCH
 }
 

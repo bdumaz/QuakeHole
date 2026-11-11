@@ -1,5 +1,5 @@
 @echo off
-rem Launches QuakeArch using your own Quake pak files.
+rem Launches QuakeHole using your own Quake pak files.
 rem Extra arguments are passed to the engine, e.g.  run.bat -window -width 1280 -height 720
 rem
 rem Where the paks are looked for, in order:
@@ -29,7 +29,7 @@ if not exist "%PAKS%\pak0.pak" goto :noquake
 if not exist "%PAKS%\pak1.pak" echo Warning: pak1.pak not found in "%PAKS%". The full game is needed; some weapon models will be missing.
 
 rem An empty config.cfg here stops the engine falling back to the one in Quake's id1 folder.
-if not exist "%ROOT%game\arch\config.cfg" echo // QuakeArch settings>"%ROOT%game\arch\config.cfg"
+if not exist "%ROOT%game\arch\config.cfg" echo // QuakeHole settings>"%ROOT%game\arch\config.cfg"
 
 rem The game opens on the main menu. Commands come first: the engine only keeps the first 256 characters for + commands.
 "%EXE%" +menu_main %* -basedir "%QUAKE%" -archdir "%ROOT%game\arch"

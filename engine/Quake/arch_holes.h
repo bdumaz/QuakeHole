@@ -1,5 +1,5 @@
 /*
-QuakeArch - the inside of holes dug in a campaign map, as triangle meshes.
+QuakeHole - the inside of holes dug in a campaign map, as triangle meshes.
 
 Every dig leaves a record of the area it touched. A face of a brush is drawn
 when it reaches into a record: those are the faces a dig may have exposed. The

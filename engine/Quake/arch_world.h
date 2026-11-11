@@ -1,5 +1,5 @@
 /*
-QuakeArch - the brush world: the list of solid convex brushes that is the
+QuakeHole - the brush world: the list of solid convex brushes that is the
 only source of truth for level geometry, with a spatial grid over it.
 No engine dependencies.
 

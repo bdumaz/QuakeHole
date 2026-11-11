@@ -40,3 +40,6 @@ game/arch/maps/
 engine/Windows/VisualStudio/Build-*/
 build/
 .superpowers/
+
+# Design notes and plans: kept locally, not published
+docs/

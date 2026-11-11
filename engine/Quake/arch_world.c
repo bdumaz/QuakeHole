@@ -1,5 +1,5 @@
 /*
-QuakeArch - the brush world.
+QuakeHole - the brush world.
 No engine dependencies.
 
 There are two worlds: the sandbox level the player builds, and the brushes

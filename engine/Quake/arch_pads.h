@@ -1,5 +1,5 @@
 /*
-QuakeArch - jump pads ("bumpers"): markers on a surface that launch the
+QuakeHole - jump pads ("bumpers"): markers on a surface that launch the
 player away from it. They are not part of the solid world.
 No engine dependencies.
 

@@ -1,5 +1,5 @@
 /*
-QuakeArch - cutting a dig box out of a flat surface polygon.
+QuakeHole - cutting a dig box out of a flat surface polygon.
 No engine dependencies.
 
 This program is free software; you can redistribute it and/or modify it

@@ -1,5 +1,5 @@
 /*
-QuakeArch - the build action wheel.
+QuakeHole - the build action wheel.
 No engine dependencies.
 
 This program is free software; you can redistribute it and/or modify it

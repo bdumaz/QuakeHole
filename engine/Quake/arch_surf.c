@@ -1,5 +1,5 @@
 /*
-QuakeArch - digging in campaign maps: the drawing side.
+QuakeHole - digging in campaign maps: the drawing side.
 
 A campaign map draws its walls from its own lit, textured surfaces. When a
 box of solid is dug away, every surface that had that solid behind it is

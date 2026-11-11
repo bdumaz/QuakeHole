@@ -1,5 +1,5 @@
 /*
-QuakeArch - draws the brush world.
+QuakeHole - draws the brush world.
 
 Each grid cell owns one triangle list per texture slot, built from the
 brushes whose home cell it is. Only cells touched by an edit are rebuilt.

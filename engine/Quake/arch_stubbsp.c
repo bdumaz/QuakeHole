@@ -1,5 +1,5 @@
 /*
-QuakeArch - a minimal BSP world model built in memory.
+QuakeHole - a minimal BSP world model built in memory.
 
 Quake needs a BSP world for leaf and visibility lookups. The real geometry
 lives in the brush world (arch_world.c); this stub is one empty, always

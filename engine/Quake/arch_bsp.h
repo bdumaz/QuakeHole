@@ -1,5 +1,5 @@
 /*
-QuakeArch - turns a map's collision tree into convex brushes.
+QuakeHole - turns a map's collision tree into convex brushes.
 No engine dependencies: the caller copies the tree into these plain structures.
 
 This program is free software; you can redistribute it and/or modify it

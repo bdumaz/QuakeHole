@@ -1,5 +1,5 @@
 /*
-QuakeArch - engine-facing declarations. Include after quakedef.h.
+QuakeHole - engine-facing declarations. Include after quakedef.h.
 (Not related to arch_def.h, which is QuakeSpasm's CPU architecture header.)
 
 This program is free software; you can redistribute it and/or modify it
