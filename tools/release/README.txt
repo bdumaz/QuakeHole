@@ -55,7 +55,7 @@ CREDITS AND LICENCE
 
 Based on QuakeSpasm. Made with Claude AI.
 QuakeHole is free software under the GNU General Public Licence, Version 2
-or later; see LICENSE.txt. Source code: https://github.com/bdumaz/QuakeArch
+or later; see LICENSE.txt. Source code: https://github.com/bdumaz/QuakeHole
 
 The included libraries and their licences are listed in THIRD-PARTY.txt.
 
