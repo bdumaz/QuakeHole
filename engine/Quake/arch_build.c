@@ -414,6 +414,29 @@ void ArchBuild_DrawHUD (void)
 
 /* ------------------------------------------------------------------ init */
 
+/* A config.cfg saved by an earlier version starts with "unbindall" and knows
+   nothing of commands added since, so their default keys would be lost. When the
+   arch map starts, any of these commands that has no key at all gets its default
+   key back, unless that key is already used for something else. */
+void ArchBuild_NewMap (void)
+{
+	static const struct { int key; const char *command; } defaults[] =
+	{
+		{'f', "fly"},
+		{'b', "arch_build"},
+	};
+	int	i, k;
+
+	for (i = 0; i < (int) (sizeof(defaults) / sizeof(defaults[0])); i++)
+	{
+		for (k = 0; k < MAX_KEYS; k++)
+			if (keybindings[k] && !q_strcasecmp (keybindings[k], defaults[i].command))
+				break;
+		if (k == MAX_KEYS && (!keybindings[defaults[i].key] || !keybindings[defaults[i].key][0]))
+			Key_SetBinding (defaults[i].key, defaults[i].command);
+	}
+}
+
 void ArchBuild_Init (void)
 {
 	Cvar_RegisterVariable (&arch_drag_speed);

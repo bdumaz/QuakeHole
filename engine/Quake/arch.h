@@ -24,6 +24,7 @@ void		ArchGame_PlayerFrame (edict_t *ent);	/* run for each player just before it
 
 /* arch_build.c */
 void		ArchBuild_Init (void);
+void		ArchBuild_NewMap (void);			/* restores default keys that have none */
 qboolean	ArchBuild_Active (void);			/* true while in build mode */
 void		ArchBuild_PlayerFrame (edict_t *ent);		/* server, once per frame for the player */
 qboolean	ArchBuild_KeyEvent (int key, qboolean down);	/* true if build mode used the key */
