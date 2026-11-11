@@ -140,7 +140,7 @@ static cvar_t	arch_infiniteammo = {"arch_infiniteammo", "1", CVAR_ARCHIVE};
 
 static cvar_t	arch_dig = {"arch_dig", "1", CVAR_ARCHIVE};
 static cvar_t	arch_dig_radius = {"arch_dig_radius", "64", CVAR_ARCHIVE};
-static cvar_t	arch_dig_time = {"arch_dig_time", "1", CVAR_ARCHIVE};
+static cvar_t	arch_dig_time = {"arch_dig_time", "0.1", CVAR_ARCHIVE};
 
 #define MAX_DIG_EVENTS	64
 

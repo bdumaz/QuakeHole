@@ -84,7 +84,7 @@ A block that would bury you is refused.
 In move mode, two weapons reshape the level:
 
 - **Rockets and grenades** blast a stepped crater about 4 m across out of whatever they hit.
-- **The lightning gun** destroys the half-metre cube it is touching once you have held the beam on it for one second, with a burst of debris. Keep holding to bore deeper, one cube per second. Sparks at the beam's end show it is working.
+- **The lightning gun** destroys the half-metre cube it is touching almost at once (after a tenth of a second on the same cube), with a burst of debris. Keep holding to bore deeper, about ten cubes a second. Sparks at the beam's end show it is working.
 
 Everything dug is made of half-metre cubes on the world grid, so the build cursor works on it and it exports exactly. Jump pads whose surface is dug away disappear. There is no undo; set `arch_dig 0` to shoot without changing the level.
 
@@ -97,7 +97,7 @@ The campaign and any other map still play in this engine: choose New Game from t
 When a campaign map loads, its solid space is rebuilt as the same kind of brushes the sandbox uses, and collision with the world runs on those. That lets weapons dig into campaign maps as they do in the sandbox:
 
 - A rocket or grenade blasts a stepped crater out of a wall, floor or ceiling. The wall around it keeps its texture and lighting, and the inside of the hole takes the texture of the wall it was blasted from.
-- The lightning gun bores half-metre cubes, one per second held.
+- The lightning gun bores half-metre cubes, about ten a second.
 - Dig through to another room and you can see, shoot and walk through the hole. So can the monsters.
 - Items and monsters standing on a floor that is dug away fall.
 - Doors, lifts, buttons, liquids and the sky cannot be dug. Restarting the map restores it; holes are not kept in savegames.
@@ -134,7 +134,7 @@ Exported `.map` files use the standard Quake format and open in editors such as 
 | `arch_infiniteammo` | 1 | Set to 0 for limited ammunition |
 | `arch_dig` | 1 | Set to 0 to stop weapons digging into the level |
 | `arch_dig_radius` | 64 | Crater radius for rockets and grenades, in units (32 units = 1 m) |
-| `arch_dig_time` | 1 | Seconds the lightning gun must stay on one cube to destroy it |
+| `arch_dig_time` | 0.1 | Seconds the lightning gun must stay on one cube to destroy it (0.1 to 10) |
 | `arch_campaign` | 1 | Set to 0 to run campaign maps on their original collision. Takes effect when a map starts |
 | `arch_drag_speed` | 1 | Units of depth per mouse count while dragging in build mode. Raise it if drags feel slow |
 | `arch_tex_ground`, `arch_tex_wall`, `arch_tex_ceiling` | `sfloor4_5`, `wbrick1_5`, `ceiling1_3` | Texture names, taken from `maps/start.bsp` in your pak. Applied at the next launch |
