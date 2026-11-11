@@ -15,6 +15,7 @@ void test_dig (void);
 void test_campaign (void);
 void test_stage6 (void);
 void test_stage7 (void);
+void test_holes (void);
 
 int main (void)
 {
@@ -31,6 +32,7 @@ int main (void)
 	test_campaign ();
 	test_stage6 ();
 	test_stage7 ();
+	test_holes ();
 	printf ("%d checks, %d failures\n", t_checks, t_failures);
 	return t_failures != 0;
 }

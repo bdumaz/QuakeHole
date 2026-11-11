@@ -208,6 +208,16 @@ static int *gather (const avec3 mins, const avec3 maxs, double pad, int *count)
 	return ids;
 }
 
+void ArchWorld_CellRange (const avec3 mins, const avec3 maxs, int lo[3], int hi[3])
+{
+	cell_range (mins, maxs, 1.0, lo, hi);
+}
+
+const int *ArchWorld_Query (const avec3 mins, const avec3 maxs, int *count)
+{
+	return gather (mins, maxs, 1.0, count);
+}
+
 /* empties the current world and gives it new bounds */
 static void clear_world (const int mins[3], const int maxs[3])
 {

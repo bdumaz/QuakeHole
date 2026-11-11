@@ -20,6 +20,7 @@ option) any later version.
 #include "arch.h"
 #include "arch_world.h"
 #include "arch_poly.h"
+#include "arch_holes.h"
 
 #define SURF_ARCHDUG	0x10000		/* this map surface has been replaced by fragments */
 
@@ -359,16 +360,12 @@ qboolean ArchSurf_Hidden (const msurface_t *surf)
 
 /* ------------------------------------------------- what a hole looks like */
 
-#define MAX_LOOKS	255
-#define MAX_DIGS	2048
+#define MAX_LOOKS	(ARCH_HOLES_MAX_LOOKS - 1)
 
 typedef struct { gltexture_t *texture; int width, height; float light; } look_t;
-typedef struct { float mins[3], maxs[3]; int look; } digrec_t;
 
 static look_t	looks[MAX_LOOKS + 1];	/* index 0 is unused: a plane tag of 0 means "no tag" */
 static int	num_looks;
-static digrec_t	digs[MAX_DIGS];
-static int	num_digs;
 
 /* the texture of the map surface nearest to a point, and how bright the map is there */
 int ArchSurf_LookFor (vec3_t pos)
@@ -390,14 +387,13 @@ int ArchSurf_LookFor (vec3_t pos)
 	{
 	if (pass == 1)
 	{
-		for (i = num_digs - 1; i >= 0; i--)
-		{
-			for (k = 0; k < 3; k++)
-				if (pos[k] < digs[i].mins[k] || pos[k] > digs[i].maxs[k])
-					break;
-			if (k == 3 && digs[i].look)
-				return digs[i].look;
-		}
+		double	p[3];
+		int	inside;
+
+		p[0] = pos[0]; p[1] = pos[1]; p[2] = pos[2];
+		inside = ArchHoles_LookAt (p);
+		if (inside)
+			return inside;
 	}
 	best_dist = pass ? 128.0f : 24.0f;
 	for (i = 0; i < world->nummodelsurfaces; i++)
@@ -455,180 +451,35 @@ int ArchSurf_LookFor (vec3_t pos)
 	looks[i].width = best->width;
 	looks[i].height = best->height;
 	looks[i].light = light;
+	ArchHoles_SetLookSize (i, best->width, best->height);
 	return i;
 }
 
 /* remember where a dig happened: brushes near it are the ones whose faces may now show */
 void ArchSurf_NoteDig (const float mins[3], const float maxs[3], int look)
 {
-	digrec_t	*d;
-	int		k, i;
+	double	lo[3], hi[3];
+	int	k;
 
-	/* a dig beside a recent one of the same look just widens that record, while it stays compact */
-	for (i = num_digs - 1; i >= 0 && i >= num_digs - 8; i--)
+	for (k = 0; k < 3; k++)
 	{
-		d = &digs[i];
-		if (d->look != look)
-			continue;
-		for (k = 0; k < 3; k++)
-			if (mins[k] > d->maxs[k] + 1 || maxs[k] < d->mins[k] - 1 ||
-			    (maxs[k] > d->maxs[k] ? maxs[k] : d->maxs[k]) - (mins[k] < d->mins[k] ? mins[k] : d->mins[k]) > 384)
-				break;
-		if (k < 3)
-			continue;
-		for (k = 0; k < 3; k++)
-		{
-			if (mins[k] < d->mins[k]) d->mins[k] = mins[k];
-			if (maxs[k] > d->maxs[k]) d->maxs[k] = maxs[k];
-		}
-		return;
+		lo[k] = mins[k];
+		hi[k] = maxs[k];
 	}
-	if (num_digs == MAX_DIGS)
-	{
-		/* out of room: let the last record grow to cover the new dig */
-		d = &digs[MAX_DIGS - 1];
-		for (k = 0; k < 3; k++)
-		{
-			if (mins[k] < d->mins[k]) d->mins[k] = mins[k];
-			if (maxs[k] > d->maxs[k]) d->maxs[k] = maxs[k];
-		}
-		return;
-	}
-	d = &digs[num_digs++];
-	VectorCopy (mins, d->mins);
-	VectorCopy (maxs, d->maxs);
-	d->look = look;
+	ArchHoles_NoteDig (lo, hi, look);
 }
 
 /* ------------------------------------------------------ hole interior mesh */
 
-#define VERT_FLOATS	5
-
-typedef struct { float *verts; int count, cap; } lookmesh_t;
-
-static lookmesh_t	meshes[MAX_LOOKS + 1];
-static int		mesh_revision = -1;
-
-/* qbsp's world-aligned texture axes, as used for sandbox brushes */
-static const float baseaxis[6][3][3] =
-{
-	{{ 0, 0, 1}, {1, 0, 0}, {0, -1, 0}},
-	{{ 0, 0,-1}, {1, 0, 0}, {0, -1, 0}},
-	{{ 1, 0, 0}, {0, 1, 0}, {0, 0, -1}},
-	{{-1, 0, 0}, {0, 1, 0}, {0, 0, -1}},
-	{{ 0, 1, 0}, {1, 0, 0}, {0, 0, -1}},
-	{{ 0,-1, 0}, {1, 0, 0}, {0, 0, -1}},
-};
-
-static void add_face (const aface_t *f, int look)
-{
-	lookmesh_t	*m = &meshes[look];
-	const look_t	*l = &looks[look];
-	double		best = 0, dot;
-	int		axis = 0, i, v, k;
-
-	for (i = 0; i < 6; i++)
-	{
-		dot = f->plane.n[0] * baseaxis[i][0][0] + f->plane.n[1] * baseaxis[i][0][1] + f->plane.n[2] * baseaxis[i][0][2];
-		if (dot > best)
-		{
-			best = dot;
-			axis = i;
-		}
-	}
-	for (v = 1; v + 1 < f->nverts; v++)
-	{
-		const double *tri[3];
-
-		tri[0] = f->verts[0]; tri[1] = f->verts[v]; tri[2] = f->verts[v + 1];
-		if (m->count + 3 > m->cap)
-		{
-			m->cap = m->cap ? m->cap * 2 : 384;
-			m->verts = (float *) realloc (m->verts, m->cap * VERT_FLOATS * sizeof(float));
-		}
-		for (i = 0; i < 3; i++)
-		{
-			float *out = m->verts + m->count++ * VERT_FLOATS;
-			const double *p = tri[i];
-
-			for (k = 0; k < 3; k++)
-				out[k] = (float) p[k];
-			out[3] = (float) ((p[0] * baseaxis[axis][1][0] + p[1] * baseaxis[axis][1][1] + p[2] * baseaxis[axis][1][2]) / l->width);
-			out[4] = (float) ((p[0] * baseaxis[axis][2][0] + p[1] * baseaxis[axis][2][1] + p[2] * baseaxis[axis][2][2]) / l->height);
-		}
-	}
-}
-
-/* Every face of every brush that reaches into a dug area. Faces that coincide
-   with a surviving map surface are drawn too, pushed back in depth so the map's
-   own surface wins; where that surface was cut away, the solid behind it, and
-   so the face, are gone as well. */
-static void rebuild_meshes (void)
-{
-	int	id, i, d, k;
-
-	for (i = 0; i <= MAX_LOOKS; i++)
-		meshes[i].count = 0;
-	for (id = 0; id < ArchWorld_SlotCount (); id++)
-	{
-		const abrush_t	*b = ArchWorld_Brush (id);
-		int		near_brush = 0, v;
-
-		if (!b || b->locked)
-			continue;
-		for (d = num_digs - 1; d >= 0 && !near_brush; d--)
-		{
-			for (k = 0; k < 3; k++)
-				if (b->mins[k] > digs[d].maxs[k] + 1 || b->maxs[k] < digs[d].mins[k] - 1)
-					break;
-			near_brush = k == 3;
-		}
-		if (!near_brush)
-			continue;
-		/* converted regions are large: of a brush near a dig, only the faces that
-		   themselves reach a dug area can have been exposed */
-		for (i = 0; i < b->nfaces; i++)
-		{
-			const aface_t	*f = &b->faces[i];
-			double		fmin[3], fmax[3];
-			int		look = f->plane.tag, near_look = 0;
-
-			for (k = 0; k < 3; k++)
-				fmin[k] = fmax[k] = f->verts[0][k];
-			for (v = 1; v < f->nverts; v++)
-				for (k = 0; k < 3; k++)
-				{
-					if (f->verts[v][k] < fmin[k]) fmin[k] = f->verts[v][k];
-					if (f->verts[v][k] > fmax[k]) fmax[k] = f->verts[v][k];
-				}
-			for (d = num_digs - 1; d >= 0 && !near_look; d--)	/* newest first */
-			{
-				for (k = 0; k < 3; k++)
-					if (fmin[k] > digs[d].maxs[k] + 1 || fmax[k] < digs[d].mins[k] - 1)
-						break;
-				if (k == 3)
-					near_look = digs[d].look ? digs[d].look : -1;
-			}
-			if (!near_look)
-				continue;
-			if (look < 1 || look > num_looks)
-				look = near_look;
-			if (look >= 1 && look <= num_looks)
-				add_face (f, look);
-		}
-	}
-	mesh_revision = ArchWorld_Revision ();
-}
-
-/* called after the map's own surfaces are drawn */
+/* called after the map's own surfaces are drawn. The meshes are rebuilt only
+   where something was dug since the last frame (arch_holes.c). */
 void ArchSurf_DrawHoles (void)
 {
-	int	i;
+	int	c, s, bound = -1;
 
-	if (!num_digs || !num_looks)
+	if (!ArchHoles_RecordCount () || !num_looks)
 		return;
-	if (mesh_revision != ArchWorld_Revision ())
-		rebuild_meshes ();
+	ArchHoles_Update ();
 
 	if (GL_UseProgramFunc)
 		GL_UseProgramFunc (0);
@@ -641,18 +492,34 @@ void ArchSurf_DrawHoles (void)
 	glPolygonOffset (1, 2);
 	glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);	/* the engine's default is replace, which ignores the colour */
 
-	for (i = 1; i <= num_looks; i++)
+	for (c = 0; c < ARCH_NUM_CELLS; c++)
 	{
-		lookmesh_t *m = &meshes[i];
+		const aholecell_t	*cell = ArchHoles_Cell (c);
+		vec3_t			mins, maxs;
 
-		if (!m->count)
+		if (!cell)
 			continue;
-		GL_Bind (looks[i].texture);
-		glColor3f (looks[i].light, looks[i].light, looks[i].light);
-		glVertexPointer (3, GL_FLOAT, VERT_FLOATS * sizeof(float), m->verts);
-		glTexCoordPointer (2, GL_FLOAT, VERT_FLOATS * sizeof(float), m->verts + 3);
-		glDrawArrays (GL_TRIANGLES, 0, m->count);
-		rs_brushpolys += m->count / 3;
+		VectorCopy (cell->mins, mins);
+		VectorCopy (cell->maxs, maxs);
+		if (R_CullBox (mins, maxs))
+			continue;
+		glVertexPointer (3, GL_FLOAT, ARCH_HOLES_VERT_FLOATS * sizeof(float), cell->verts);
+		glTexCoordPointer (2, GL_FLOAT, ARCH_HOLES_VERT_FLOATS * sizeof(float), cell->verts + 3);
+		for (s = 0; s < cell->nsegs; s++)
+		{
+			const aholeseg_t *seg = &cell->segs[s];
+
+			if (seg->look < 1 || seg->look > num_looks)
+				continue;
+			if (seg->look != bound)
+			{
+				GL_Bind (looks[seg->look].texture);
+				glColor3f (looks[seg->look].light, looks[seg->look].light, looks[seg->look].light);
+				bound = seg->look;
+			}
+			glDrawArrays (GL_TRIANGLES, seg->first, seg->count);
+			rs_brushpolys += seg->count / 3;
+		}
 	}
 
 	glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
@@ -688,8 +555,8 @@ void ArchSurf_NewMap (void)
 	map_dug = false;
 	map_built = false;
 	num_looks = 0;
-	num_digs = 0;
-	mesh_revision = -1;
+	/* in a campaign map the freshly converted world marks every cell changed: none of that is a hole */
+	ArchHoles_Reset (!Arch_Active ());
 
 	if (!world)
 		return;

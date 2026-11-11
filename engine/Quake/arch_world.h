@@ -56,7 +56,12 @@ int    ArchWorld_SlotCount (void);		/* highest id + 1 */
 const abrush_t *ArchWorld_Brush (int id);	/* NULL for a free slot */
 double ArchWorld_SolidVolume (void);
 
-int    ArchWorld_HomeCell (int id);		/* cell containing the brush's mins corner */
+int    ArchWorld_HomeCell (int id);
+/* grid cells (x, y, z, each 0..ARCH_GRID-1) a box overlaps, grown by one unit */
+void   ArchWorld_CellRange (const avec3 mins, const avec3 maxs, int lo[3], int hi[3]);
+/* ids of brushes that may overlap the box (a superset). The array is shared
+   scratch, valid until the next world call. */
+const int *ArchWorld_Query (const avec3 mins, const avec3 maxs, int *count);		/* cell containing the brush's mins corner */
 int    ArchWorld_TakeDirtyCells (int *cells, int max);	/* returns how many were written, and clears them */
 
 #endif /* ARCH_WORLD_H */
