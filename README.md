@@ -17,7 +17,13 @@ tools\build.bat      builds the engine
 run.bat              starts QuakeArch
 ```
 
-`run.bat` looks for Quake in the default Steam location, `C:\Program Files (x86)\Steam\steamapps\common\Quake`. If yours is elsewhere, create a file named `quakepath.txt` next to `run.bat` containing one line: the path to your Quake folder.
+`run.bat` looks for your pak files in this order:
+
+1. The folder named in `quakepath.txt`, a one-line text file you can create next to `run.bat`.
+2. A folder named `Quake paks` next to `run.bat`. Copy `pak0.pak` and `pak1.pak` into it.
+3. The default Steam location, `C:\Program Files (x86)\Steam\steamapps\common\Quake`.
+
+A folder may hold the two paks directly or inside an `id1` subfolder. The `Quake paks` folder is ignored by git, so the paks are never committed.
 
 Arguments after `run.bat` are passed to the engine, for example `run.bat -window -width 1280 -height 720`.
 

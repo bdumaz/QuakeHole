@@ -2447,6 +2447,24 @@ void COM_InitFilesystem (void) //johnfitz -- modified based on topaz's tutorial
 		com_basedir[j-1] = 0;
 
 	// start up with GAMENAME by default (id1)
+	// QUAKEARCH: also accept a folder that holds pak0.pak directly, with no id1 subfolder
+	if (Sys_FileType (va ("%s/" GAMENAME "/pak0.pak", com_basedir)) != FS_ENT_FILE &&
+	    Sys_FileType (va ("%s/pak0.pak", com_basedir)) == FS_ENT_FILE)
+	{
+		char	parent[MAX_OSPATH];
+		char	*leaf, *c;
+
+		q_strlcpy (parent, com_basedir, sizeof(parent));
+		for (c = parent; *c; c++)
+			if (*c == '\\')
+				*c = '/';
+		leaf = strrchr (parent, '/');
+		if (!leaf || !leaf[1])
+			Sys_Error ("-basedir needs a full path when the pak files are not in an id1 subfolder");
+		*leaf++ = 0;
+		COM_AddGameDirectory (parent, leaf);
+	}
+	else
 	COM_AddGameDirectory (com_basedir, GAMENAME);
 
 	/* this is the end of our base searchpath:
