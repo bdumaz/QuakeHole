@@ -47,19 +47,33 @@ void   ArchDig_DwellReset (adwell_t *d);
 int    ArchDig_Dwell (adwell_t *d, const int cell[3], double now, double hold);
 double ArchDig_DwellProgress (const adwell_t *d, double now, double hold);	/* 0..1 */
 
+/* ---- how much each weapon digs ---- */
+
+#define ARCH_DIG_ROCKET_DAMAGE	120.0
+
+double ArchDig_DamageForHit (int kind);		/* damage one hit of this kind does in the stock game; 0 if it is not a weapon hit */
+/* crater radius for a hit of the given damage, so that the volume removed is in
+   proportion to the damage and a rocket's 120 gives rocket_radius */
+double ArchDig_RadiusForDamage (double damage, double rocket_radius);
+/* the lightning gun's bite: size cubes across (odd; even sizes round up), centred on cell */
+void   ArchDig_BeamBlock (const int cell[3], int size, int mins[3], int maxs[3]);
+
 /* ---- recognising the game code's reports ---- */
 
 /* The stock game announces an explosion as: byte 23 (temp entity), byte 3
    (explosion), three coordinates. A lightning beam is: byte 23, byte 6, an
    entity, three coordinates for the start and three for the end. The parser is
    fed every value the game code writes and reports when one of these completes. */
-enum { ARCH_DIG_NONE, ARCH_DIG_BLAST, ARCH_DIG_BEAM };
+/* A bullet, nail or bolt hitting something is: byte 23, a kind byte (0 nail,
+   1 super nail, 2 gunshot, 7 wizard spike, 8 knight spike), three coordinates. */
+enum { ARCH_DIG_NONE, ARCH_DIG_BLAST, ARCH_DIG_BEAM, ARCH_DIG_HIT };
 
-typedef struct { int state, count; float values[6]; } adigparse_t;
+typedef struct { int state, count, kind; float values[6]; } adigparse_t;
 
 void ArchDigParse_Reset (adigparse_t *p);
 /* dest is the message destination; only 0 (broadcast) is listened to.
-   On ARCH_DIG_BLAST out[0..2] is the position; on ARCH_DIG_BEAM out[0..2] is the start and out[3..5] the end. */
+   On ARCH_DIG_BLAST and ARCH_DIG_HIT out[0..2] is the position and, for a hit, out[3] the kind;
+   on ARCH_DIG_BEAM out[0..2] is the start and out[3..5] the end. */
 int  ArchDigParse_Byte (adigparse_t *p, int dest, int value, float out[6]);
 int  ArchDigParse_Coord (adigparse_t *p, int dest, float value, float out[6]);
 int  ArchDigParse_Entity (adigparse_t *p, int dest, float out[6]);

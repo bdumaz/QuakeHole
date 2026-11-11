@@ -29,6 +29,7 @@ void		ArchGame_NewMap (void);			/* call when the arch map starts */
 void		ArchGame_WroteByte (int dest, int value);
 void		ArchGame_WroteCoord (int dest, float value);
 void		ArchGame_WroteEntity (int dest);
+void		ArchGame_Particle (const float *org, int count);	/* the game code asked for a particle burst */
 
 /* arch_build.c */
 void		ArchBuild_Init (void);

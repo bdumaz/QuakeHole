@@ -393,7 +393,7 @@ static void test_parser (void)
 
 	/* other temp-entity types are ignored, and the parser is ready for the next report */
 	CHECK (ArchDigParse_Byte (&p, 0, 23, out) == ARCH_DIG_NONE);
-	CHECK (ArchDigParse_Byte (&p, 0, 2, out) == ARCH_DIG_NONE);	/* TE_GUNSHOT */
+	CHECK (ArchDigParse_Byte (&p, 0, 10, out) == ARCH_DIG_NONE);	/* TE_LAVASPLASH: not a weapon */
 	CHECK (ArchDigParse_Coord (&p, 0, 9, out) == ARCH_DIG_NONE);
 	CHECK (ArchDigParse_Coord (&p, 0, 9, out) == ARCH_DIG_NONE);
 	CHECK (ArchDigParse_Coord (&p, 0, 9, out) == ARCH_DIG_NONE);
@@ -424,8 +424,53 @@ static void test_parser (void)
 	CHECK (ArchDigParse_Coord (&p, 0, 1, out) == ARCH_DIG_NONE);
 }
 
+/* every weapon digs: bullets, nails and monster bolts are reported as hits with their kind */
+static void test_weapon_hits (void)
+{
+	static const int kinds[5] = {0, 1, 2, 7, 8};	/* spike, super spike, gunshot, wizard spike, knight spike */
+	adigparse_t p;
+	float out[6];
+	int i, mn[3], mx[3], cell[3] = {10, -2, 3};
+
+	ArchDigParse_Reset (&p);
+	for (i = 0; i < 5; i++)
+	{
+		CHECK (ArchDigParse_Byte (&p, 0, 23, out) == ARCH_DIG_NONE);
+		CHECK (ArchDigParse_Byte (&p, 0, kinds[i], out) == ARCH_DIG_NONE);
+		CHECK (ArchDigParse_Coord (&p, 0, 1, out) == ARCH_DIG_NONE);
+		CHECK (ArchDigParse_Coord (&p, 0, 2, out) == ARCH_DIG_NONE);
+		CHECK (ArchDigParse_Coord (&p, 0, 3, out) == ARCH_DIG_HIT);
+		CHECK (out[0] == 1 && out[1] == 2 && out[2] == 3 && out[3] == (float) kinds[i]);
+	}
+	/* an explosion is still a blast */
+	CHECK (feed_explosion (&p, 4, 5, 6, out) == ARCH_DIG_BLAST);
+
+	/* damage per hit, as the stock game deals it */
+	CHECK (ArchDig_DamageForHit (0) == 9);		/* nail */
+	CHECK (ArchDig_DamageForHit (1) == 18);		/* super nail */
+	CHECK (ArchDig_DamageForHit (2) == 4);		/* one shotgun pellet */
+	CHECK (ArchDig_DamageForHit (7) == 9);
+	CHECK (ArchDig_DamageForHit (8) == 9);
+	CHECK (ArchDig_DamageForHit (10) == 0);
+
+	/* the hole's volume is in proportion to the damage; a rocket does 120 */
+	CHECK_NEAR (ArchDig_RadiusForDamage (120, 64), 64.0, 1e-9);
+	CHECK_NEAR (ArchDig_RadiusForDamage (15, 64), 32.0, 1e-9);	/* an eighth of the damage: half the radius */
+	CHECK_NEAR (ArchDig_RadiusForDamage (4, 64), 64.0 * pow (4.0 / 120, 1.0 / 3), 1e-9);
+	CHECK (ArchDig_RadiusForDamage (0, 64) == 0);
+
+	/* the lightning gun's bite: a block of cubes centred on the cube it is touching */
+	ArchDig_BeamBlock (cell, 3, mn, mx);
+	CHECK (mn[0] == 144 && mx[0] == 192 && mn[1] == -48 && mx[1] == 0 && mn[2] == 32 && mx[2] == 80);
+	ArchDig_BeamBlock (cell, 1, mn, mx);
+	CHECK (mn[0] == 160 && mx[0] == 176);
+	ArchDig_BeamBlock (cell, 4, mn, mx);		/* even sizes round up to the next odd one */
+	CHECK (mx[0] - mn[0] == 80);
+}
+
 void test_dig (void)
 {
+	test_weapon_hits ();
 	test_crater ();
 	test_crater_in_world ();
 	test_cells ();

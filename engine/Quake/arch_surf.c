@@ -383,7 +383,7 @@ int ArchSurf_LookFor (vec3_t pos)
 
 	R_LightPoint (pos);
 	light = (lightcolor[0] + lightcolor[1] + lightcolor[2]) / (3 * 200.0f);
-	if (light < 0.3f) light = 0.3f;
+	if (light < 0.5f) light = 0.5f;	/* never so dark that the hole reads as a black void */
 	if (light > 1.0f) light = 1.0f;
 
 	for (i = 1; i <= num_looks; i++)

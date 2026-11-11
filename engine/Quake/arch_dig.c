@@ -204,7 +204,38 @@ double ArchDig_DwellProgress (const adwell_t *d, double now, double hold)
 #define TE_EXPLOSION	3
 #define TE_LIGHTNING2	6
 
-enum { P_IDLE, P_TYPE, P_BLAST, P_BEAM_ENTITY, P_BEAM };
+enum { P_IDLE, P_TYPE, P_BLAST, P_BEAM_ENTITY, P_BEAM, P_HIT };
+
+double ArchDig_DamageForHit (int kind)
+{
+	switch (kind)
+	{
+	case 0:		return 9;	/* nail */
+	case 1:		return 18;	/* super nail */
+	case 2:		return 4;	/* one shotgun pellet; also an axe or laser striking a wall */
+	case 7:				/* wizard spike */
+	case 8:		return 9;	/* knight spike */
+	default:	return 0;
+	}
+}
+
+double ArchDig_RadiusForDamage (double damage, double rocket_radius)
+{
+	if (damage <= 0)
+		return 0;
+	return rocket_radius * pow (damage / ARCH_DIG_ROCKET_DAMAGE, 1.0 / 3.0);
+}
+
+void ArchDig_BeamBlock (const int cell[3], int size, int mins[3], int maxs[3])
+{
+	int	half = size < 1 ? 0 : size / 2, k;
+
+	for (k = 0; k < 3; k++)
+	{
+		mins[k] = (cell[k] - half) * ARCH_DIG_CELL;
+		maxs[k] = (cell[k] + half + 1) * ARCH_DIG_CELL;
+	}
+}
 
 void ArchDigParse_Reset (adigparse_t *p)
 {
@@ -219,8 +250,11 @@ int ArchDigParse_Byte (adigparse_t *p, int dest, int value, float out[6])
 	if (p->state == P_TYPE)
 	{
 		p->count = 0;
+		p->kind = value;
 		if (value == TE_EXPLOSION)
 			p->state = P_BLAST;
+		else if (ArchDig_DamageForHit (value) > 0)
+			p->state = P_HIT;
 		else if (value == TE_LIGHTNING2)
 			p->state = P_BEAM_ENTITY;
 		else
@@ -238,18 +272,23 @@ int ArchDigParse_Coord (adigparse_t *p, int dest, float value, float out[6])
 
 	if (dest != 0)
 		return ARCH_DIG_NONE;
-	if (p->state != P_BLAST && p->state != P_BEAM)
+	int	state = p->state;
+
+	if (state != P_BLAST && state != P_BEAM && state != P_HIT)
 	{
 		p->state = P_IDLE;
 		return ARCH_DIG_NONE;
 	}
-	need = p->state == P_BLAST ? 3 : 6;
+	need = state == P_BEAM ? 6 : 3;
 	p->values[p->count++] = value;
 	if (p->count < need)
 		return ARCH_DIG_NONE;
 	memcpy (out, p->values, need * sizeof(float));
 	p->state = P_IDLE;
-	return need == 3 ? ARCH_DIG_BLAST : ARCH_DIG_BEAM;
+	if (state == P_BEAM)
+		return ARCH_DIG_BEAM;
+	out[3] = (float) p->kind;
+	return state == P_BLAST ? ARCH_DIG_BLAST : ARCH_DIG_HIT;
 }
 
 int ArchDigParse_Entity (adigparse_t *p, int dest, float out[6])

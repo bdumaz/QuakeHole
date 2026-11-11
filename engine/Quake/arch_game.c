@@ -141,9 +141,11 @@ static cvar_t	arch_infiniteammo = {"arch_infiniteammo", "1", CVAR_ARCHIVE};
 
 static cvar_t	arch_dig = {"arch_dig", "1", CVAR_ARCHIVE};
 static cvar_t	arch_dig_radius = {"arch_dig_radius", "64", CVAR_ARCHIVE};
-static cvar_t	arch_dig_time = {"arch_dig_time", "0.1", CVAR_ARCHIVE};
+static cvar_t	arch_dig_time = {"arch_dig_time", "0.05", CVAR_ARCHIVE};
+static cvar_t	arch_dig_beam = {"arch_dig_beam", "3", CVAR_ARCHIVE};		/* the lightning gun's bite, in cubes across */
+static cvar_t	arch_dig_weapons = {"arch_dig_weapons", "1", CVAR_ARCHIVE};	/* scales what bullets and nails dig; 0 turns them off */
 
-#define MAX_DIG_EVENTS	64
+#define MAX_DIG_EVENTS	256	/* a super shotgun blast alone is fourteen */
 
 typedef struct { int kind; float v[6]; } digevent_t;
 
@@ -165,6 +167,21 @@ static void note_dig_event (int kind, const float *v)
 	dig_events[num_dig_events].kind = kind;
 	memcpy (dig_events[num_dig_events].v, v, sizeof(dig_events[0].v));
 	num_dig_events++;
+}
+
+/* Exploding barrels do not send the explosion message rockets do. The stock game
+   marks theirs by asking for a particle burst with the special count of 255,
+   at the barrel's corner on the floor. A barrel does 160 damage to a rocket's 120. */
+void ArchGame_Particle (const float *org, int count)
+{
+	float	v[6] = {0, 0, 0, 160, 0, 0};
+
+	if (count < 255)
+		return;
+	v[0] = org[0] + 16;	/* the middle of the barrel */
+	v[1] = org[1] + 16;
+	v[2] = org[2] + 24;
+	note_dig_event (ARCH_DIG_BLAST, v);
 }
 
 void ArchGame_WroteByte (int dest, int value)
@@ -286,16 +303,15 @@ static qboolean dig_box (const int mins[3], const int maxs[3], int look)
 	return ok != 0;
 }
 
-/* an explosion: remove the grid cubes around it */
-static void dig_blast (const float *pos)
+/* remove the grid cubes within radius of a point */
+static void dig_crater (const float *pos, double radius)
 {
 	avec3	centre;
 	vec3_t	at, lo, hi;
-	double	radius = arch_dig_radius.value;
 	int	n, i, k, look = 0, revision;
 
-	if (radius < ARCH_DIG_CELL) radius = ARCH_DIG_CELL;
-	if (radius > ARCH_DIG_MAX_RADIUS) radius = ARCH_DIG_MAX_RADIUS;
+	if (radius <= 0)
+		return;
 	for (k = 0; k < 3; k++)
 	{
 		centre[k] = at[k] = pos[k];
@@ -316,13 +332,16 @@ static void dig_blast (const float *pos)
 /* a lightning beam report: time how long it stays on one cube, and remove the cube when the time is up */
 static void dig_beam (const float *v)
 {
-	avec3	beam_end, beam_dir;
-	vec3_t	dir, end, centre;
+	avec3	beam_end, beam_dir, deeper;
+	vec3_t	dir, end, centre, lo, hi;
 	double	hold = arch_dig_time.value;
-	int	cell[3], mins[3], maxs[3], k, revision, look = 0;
+	int	cell[3], mins[3], maxs[3], k, bite, bites = 1, size, look = 0, revision;
 
-	if (hold < 0.1) hold = 0.1;
+	if (hold < 0.02) hold = 0.02;
 	if (hold > 10) hold = 10;
+	size = (int) arch_dig_beam.value;
+	if (size < 1) size = 1;
+	if (size > 9) size = 9;
 	for (k = 0; k < 3; k++)
 	{
 		dir[k] = v[3 + k] - v[k];
@@ -343,32 +362,78 @@ static void dig_beam (const float *v)
 		ArchDig_DwellReset (&dig_dwell);	/* the beam ended in open air */
 		return;
 	}
-	if (!ArchDig_Dwell (&dig_dwell, cell, sv.time, hold))
+	if (hold >= 0.1)
 	{
-		SV_StartParticle (end, vec3_origin, 111, 4);	/* sparks while it works */
-		return;
+		/* slow settings: the beam has to stay on one cube for the whole time */
+		if (!ArchDig_Dwell (&dig_dwell, cell, sv.time, hold))
+		{
+			SV_StartParticle (end, vec3_origin, 111, 4);	/* sparks while it works */
+			return;
+		}
 	}
-	ArchDig_CellBox (cell, mins, maxs);
+	else
+	{
+		/* The gun reports its beam ten times a second, so nothing can react
+		   faster than that. A shorter time means several bites per report,
+		   each one cube further along the beam. */
+		bites = (int) (0.1 / hold + 0.5);
+		if (bites > 4) bites = 4;
+	}
+
 	revision = ArchWorld_Revision ();
 	if (!Arch_Active ())
 		look = ArchSurf_LookFor (end);
-	if (!dig_box (mins, maxs, look) || ArchWorld_Revision () == revision)
-		return;		/* refused, or nothing there could be removed (sky, or the world's outer shell) */
-	if (!Arch_Active ())
+	for (bite = 0; bite < bites; bite++)
 	{
-		vec3_t lo, hi;
+		if (bite)
+		{
+			for (k = 0; k < 3; k++)
+				deeper[k] = beam_end[k] + beam_dir[k] * (1 + ARCH_DIG_CELL * bite);
+			ArchDig_CellAt (deeper, cell);
+		}
+		ArchDig_BeamBlock (cell, size, mins, maxs);
+		if (!dig_box (mins, maxs, look))
+			break;
 		for (k = 0; k < 3; k++)
 		{
-			lo[k] = (float) mins[k];
-			hi[k] = (float) maxs[k];
+			if (!bite || mins[k] < lo[k]) lo[k] = (float) mins[k];
+			if (!bite || maxs[k] > hi[k]) hi[k] = (float) maxs[k];
 		}
-		ArchSurf_NoteDig (lo, hi, look);
 	}
+	if (ArchWorld_Revision () == revision)
+		return;		/* refused, or nothing there could be removed (sky, or the world's outer shell) */
+	if (!Arch_Active ())
+		ArchSurf_NoteDig (lo, hi, look);
 	for (k = 0; k < 3; k++)
-		centre[k] = (mins[k] + maxs[k]) * 0.5f;
-	/* the cube bursts: grey chips and a brighter flash */
+		centre[k] = (lo[k] + hi[k]) * 0.5f;
+	/* the rock bursts: grey chips and a brighter flash */
 	SV_StartParticle (centre, vec3_origin, 4, 60);
 	SV_StartParticle (centre, vec3_origin, 111, 30);
+}
+
+/* a bullet, nail or bolt: a small crater, its volume in proportion to the damage the hit does */
+static void dig_hit (const float *v)
+{
+	double	damage = ArchDig_DamageForHit ((int) v[3]) * arch_dig_weapons.value;
+	double	rocket = arch_dig_radius.value;
+
+	if (damage <= 0)
+		return;
+	if (rocket < ARCH_DIG_CELL) rocket = ARCH_DIG_CELL;
+	if (rocket > ARCH_DIG_MAX_RADIUS) rocket = ARCH_DIG_MAX_RADIUS;
+	dig_crater (v, ArchDig_RadiusForDamage (damage, rocket));
+}
+
+/* an explosion: a rocket, a grenade, an exploding barrel */
+static void dig_blast (const float *pos)
+{
+	double	radius = arch_dig_radius.value;
+
+	if (radius < ARCH_DIG_CELL) radius = ARCH_DIG_CELL;
+	if (radius > ARCH_DIG_MAX_RADIUS) radius = ARCH_DIG_MAX_RADIUS;
+	if (pos[3] > 0 && pos[3] != 3)	/* a blast with its own damage figure (a barrel); 3 is the plain explosion's kind */
+		radius = ArchDig_RadiusForDamage (pos[3], radius);
+	dig_crater (pos, radius);
 }
 
 static void run_dig_events (void)
@@ -386,6 +451,8 @@ static void run_dig_events (void)
 	{
 		if (dig_events[i].kind == ARCH_DIG_BLAST)
 			dig_blast (dig_events[i].v);
+		else if (dig_events[i].kind == ARCH_DIG_HIT)
+			dig_hit (dig_events[i].v);
 		else
 			dig_beam (dig_events[i].v);
 	}
@@ -606,6 +673,8 @@ void Arch_Init (void)
 	Cvar_RegisterVariable (&arch_dig);
 	Cvar_RegisterVariable (&arch_dig_radius);
 	Cvar_RegisterVariable (&arch_dig_time);
+	Cvar_RegisterVariable (&arch_dig_beam);
+	Cvar_RegisterVariable (&arch_dig_weapons);
 
 	Cmd_AddCommand ("arch_carve", Arch_Carve_f);
 	Cmd_AddCommand ("arch_add", Arch_Add_f);

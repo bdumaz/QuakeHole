@@ -564,6 +564,7 @@ static void PF_particle (void)
 	dir = G_VECTOR(OFS_PARM1);
 	color = G_FLOAT(OFS_PARM2);
 	count = G_FLOAT(OFS_PARM3);
+	ArchGame_Particle (org, (int) count); // QUAKEARCH: an exploding barrel announces itself only this way
 	SV_StartParticle (org, dir, color, count);
 }
 
