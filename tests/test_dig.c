@@ -220,6 +220,85 @@ static void test_beam_cell (void)
 	ArchWorld_Reset ();
 }
 
+/* Review: on a slope the cube being hit can have its centre in the air */
+static void test_beam_cell_on_slope (void)
+{
+	/* a ramp rising 40 over 96 toward +x, standing on the room floor */
+	int tri[3][3] = {{0, 0, -160}, {96, 0, -160}, {96, 0, -120}}, ex[3] = {0, 64, 0};
+	abrush_t *ramp = ArchBrush_Prism (tri, 3, ex);
+	avec3 end, down = {0, 0, -1}, centre;
+	int cell[3];
+
+	ArchWorld_Reset ();
+	CHECK (ramp != NULL);
+	ArchWorld_Add (ramp);
+	ArchBrush_Free (ramp);
+
+	/* at x = 60 the slope is at z = -135; the cube under the beam is x 48..64, z -144..-128 */
+	end[0] = 60; end[1] = 10; end[2] = -135 + 1.0 / 32;
+	centre[0] = 56; centre[1] = 8; centre[2] = -136;
+	CHECK (!ArchWorld_PointSolid (centre));		/* that cube's centre is above the slope */
+	CHECK (ArchDig_BeamCell (end, down, ArchWorld_PointSolid, cell) == 1);
+	CHECK (cell[0] == 3 && cell[1] == 0 && cell[2] == -9);
+	ArchWorld_Reset ();
+}
+
+/* Review: time going backwards (map restart, loading a save) must not stall the timer */
+static void test_dwell_time_reset (void)
+{
+	adwell_t d;
+	int a[3] = {10, 0, 0}, b[3] = {11, 0, 0};
+
+	ArchDig_DwellReset (&d);
+	ArchDig_Dwell (&d, a, 500.0, 1.0);
+	ArchDig_Dwell (&d, a, 500.2, 1.0);
+	CHECK (ArchDig_Dwell (&d, a, 1.0, 1.0) == 0);	/* restarted at the new time */
+	CHECK (ArchDig_Dwell (&d, a, 1.2, 1.0) == 0);
+	CHECK (ArchDig_Dwell (&d, a, 1.4, 1.0) == 0);
+	CHECK (ArchDig_Dwell (&d, a, 1.6, 1.0) == 0);
+	CHECK (ArchDig_Dwell (&d, a, 1.8, 1.0) == 0);
+	CHECK (ArchDig_Dwell (&d, a, 2.0, 1.0) == 1);
+
+	/* Review: boring straight in takes the hold time per cube, not the hold time plus a report */
+	ArchDig_DwellReset (&d);
+	ArchDig_Dwell (&d, a, 10.0, 1.0);
+	ArchDig_Dwell (&d, a, 10.2, 1.0);
+	ArchDig_Dwell (&d, a, 10.4, 1.0);
+	ArchDig_Dwell (&d, a, 10.6, 1.0);
+	ArchDig_Dwell (&d, a, 10.8, 1.0);
+	CHECK (ArchDig_Dwell (&d, a, 11.0, 1.0) == 1);	/* cube a goes */
+	CHECK (ArchDig_Dwell (&d, b, 11.1, 1.0) == 0);	/* the beam is now on the cube behind it */
+	ArchDig_Dwell (&d, b, 11.3, 1.0);
+	ArchDig_Dwell (&d, b, 11.5, 1.0);
+	ArchDig_Dwell (&d, b, 11.7, 1.0);
+	CHECK (ArchDig_Dwell (&d, b, 11.9, 1.0) == 0);
+	CHECK (ArchDig_Dwell (&d, b, 12.0, 1.0) == 1);	/* one second after a went */
+	/* but a change of cube at any other moment still starts from scratch */
+	CHECK (ArchDig_Dwell (&d, b, 12.2, 1.0) == 0);
+	CHECK (ArchDig_Dwell (&d, a, 12.4, 1.0) == 0);
+	ArchDig_Dwell (&d, a, 12.6, 1.0);
+	ArchDig_Dwell (&d, a, 12.8, 1.0);
+	ArchDig_Dwell (&d, a, 13.0, 1.0);
+	CHECK (ArchDig_Dwell (&d, a, 13.2, 1.0) == 0);
+	CHECK (ArchDig_Dwell (&d, a, 13.4, 1.0) == 1);
+}
+
+static void test_revision (void)
+{
+	int mn[3] = {160, 0, 0}, mx[3] = {176, 16, 16}, r;
+	abrush_t *b = ArchBrush_Box (mn, mx);
+
+	ArchWorld_Reset ();
+	r = ArchWorld_Revision ();
+	ArchWorld_Carve (b);
+	CHECK (ArchWorld_Revision () != r);	/* something was removed */
+	r = ArchWorld_Revision ();
+	ArchWorld_Carve (b);
+	CHECK (ArchWorld_Revision () == r);	/* already air: nothing changed */
+	ArchBrush_Free (b);
+	ArchWorld_Reset ();
+}
+
 static void test_dwell (void)
 {
 	adwell_t d;
@@ -351,6 +430,9 @@ void test_dig (void)
 	test_crater_in_world ();
 	test_cells ();
 	test_beam_cell ();
+	test_beam_cell_on_slope ();
 	test_dwell ();
+	test_dwell_time_reset ();
+	test_revision ();
 	test_parser ();
 }

@@ -20,6 +20,7 @@ static int	num_slots, cap_slots;
 static int	*free_ids;
 static int	num_free, cap_free;
 static int	num_live;
+static int	revision;
 static int	max_brushes = ARCH_MAX_BRUSHES;
 static unsigned	query_stamp;
 
@@ -111,6 +112,7 @@ static int insert_brush (abrush_t *b)
 	brushes[id] = b;
 	stamps[id] = 0;
 	num_live++;
+	revision++;
 
 	brush_cells (b, lo, hi);
 	for (z = lo[2]; z <= hi[2]; z++)
@@ -136,6 +138,7 @@ static void remove_brush (int id)
 	ArchBrush_Free (b);
 	brushes[id] = NULL;
 	num_live--;
+	revision++;
 	if (num_free == cap_free)
 	{
 		cap_free = cap_free ? cap_free * 2 : 256;
@@ -188,6 +191,7 @@ static int *gather (const avec3 mins, const avec3 maxs, double pad, int *count)
 /* ---------------------------------------------------------------- access */
 
 int ArchWorld_BrushCount (void)	{ return num_live; }
+int ArchWorld_Revision (void)	{ return revision; }
 int ArchWorld_SlotCount (void)	{ return num_slots; }
 
 const abrush_t *ArchWorld_Brush (int id)
@@ -375,6 +379,7 @@ void ArchWorld_Reset (void)
 	for (i = 0; i < ARCH_NUM_CELLS; i++)
 		cells[i].count = 0;
 	num_slots = num_free = num_live = 0;
+	revision++;
 	max_brushes = ARCH_MAX_BRUSHES;
 
 	insert_brush (volume_box ());

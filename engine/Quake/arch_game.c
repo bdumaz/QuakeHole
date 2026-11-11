@@ -80,8 +80,8 @@ static int		dig_boxes[ARCH_DIG_MAX_BOXES][6];
 static double		dig_refused_time = -10;
 
 /* The game code reports explosions and beams from inside its own functions, in
-   the middle of physics. They are only noted here and dug at the start of the
-   next server frame. */
+   the middle of physics. They are only noted here and dug the next time the
+   player's frame runs. */
 static void note_dig_event (int kind, const float *v)
 {
 	if (kind == ARCH_DIG_NONE || !arch_dig.value || !Arch_Active () || num_dig_events == MAX_DIG_EVENTS)
@@ -107,6 +107,38 @@ void ArchGame_WroteEntity (int dest)
 {
 	float	out[6];
 	note_dig_event (ArchDigParse_Entity (&dig_parser, dest, out), out);
+}
+
+/* an entity resting on ground that is no longer there must start falling again */
+static void drop_unsupported_entities (void)
+{
+	int	i;
+
+	for (i = svs.maxclients + 1; i < sv.num_edicts; i++)
+	{
+		edict_t	*e = EDICT_NUM (i);
+		avec3	below;
+		int	movetype = (int) e->v.movetype;
+
+		if (e->free || !((int) e->v.flags & FL_ONGROUND))
+			continue;
+		if (movetype != MOVETYPE_TOSS && movetype != MOVETYPE_BOUNCE && movetype != MOVETYPE_STEP)
+			continue;
+		below[0] = e->v.origin[0];
+		below[1] = e->v.origin[1];
+		below[2] = e->v.origin[2] + e->v.mins[2] - 1;
+		if (!ArchWorld_PointSolid (below))
+			e->v.flags = (float) ((int) e->v.flags & ~FL_ONGROUND);
+	}
+}
+
+/* forget anything left over from before a map start: time may have gone backwards */
+void ArchGame_NewMap (void)
+{
+	ArchDigParse_Reset (&dig_parser);
+	ArchDig_DwellReset (&dig_dwell);
+	num_dig_events = 0;
+	dig_refused_time = -10;
 }
 
 /* removes one box of solid; false if the brush limit refused it */
@@ -149,7 +181,7 @@ static void dig_beam (const float *v)
 	avec3	beam_end, beam_dir;
 	vec3_t	dir, end, centre;
 	double	hold = arch_dig_time.value;
-	int	cell[3], mins[3], maxs[3], k;
+	int	cell[3], mins[3], maxs[3], k, revision;
 
 	if (hold < 0.1) hold = 0.1;
 	if (hold > 10) hold = 10;
@@ -179,8 +211,9 @@ static void dig_beam (const float *v)
 		return;
 	}
 	ArchDig_CellBox (cell, mins, maxs);
-	if (!dig_box (mins, maxs))
-		return;
+	revision = ArchWorld_Revision ();
+	if (!dig_box (mins, maxs) || ArchWorld_Revision () == revision)
+		return;		/* refused, or nothing there could be removed (the world's outer shell) */
 	for (k = 0; k < 3; k++)
 		centre[k] = (mins[k] + maxs[k]) * 0.5f;
 	/* the cube bursts: grey chips and a brighter flash */
@@ -190,7 +223,7 @@ static void dig_beam (const float *v)
 
 static void run_dig_events (void)
 {
-	int	i, dug = num_dig_events;
+	int	i, revision = ArchWorld_Revision ();
 
 	for (i = 0; i < num_dig_events; i++)
 	{
@@ -200,10 +233,11 @@ static void run_dig_events (void)
 			dig_beam (dig_events[i].v);
 	}
 	num_dig_events = 0;
-	if (dug)
+	if (ArchWorld_Revision () != revision)
 	{
 		ArchPads_Prune (ArchWorld_PointSolid);
 		ArchBuild_WorldChanged ();
+		drop_unsupported_entities ();
 	}
 }
 

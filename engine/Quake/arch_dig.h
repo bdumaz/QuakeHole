@@ -33,13 +33,13 @@ void ArchDig_CellBox (const int cell[3], int mins[3], int maxs[3]);
 
 /* The cube a beam ending at end, travelling along dir (unit length), is working on:
    the cube just past the end of the beam. When the beam runs exactly along a grid
-   line or corner, several cubes share that point; the first one that is still
-   solid is chosen. Returns 0 if there is none (the beam ended in open air). */
+   line or corner, several cubes share that point; the first one that still has
+   solid at its centre, or at the point nudged into it, is chosen. Returns 0 if there is none (the beam ended in open air). */
 int  ArchDig_BeamCell (const avec3 end, const avec3 dir, int (*solid) (const avec3 p), int cell[3]);
 
 /* ---- the lightning gun's dwell timer ---- */
 
-typedef struct { int valid; int cell[3]; double since, last; } adwell_t;
+typedef struct { int valid, fired; int cell[3]; double since, last; } adwell_t;
 
 void   ArchDig_DwellReset (adwell_t *d);
 /* One beam report on the given cube at time now. Returns 1 when the beam has

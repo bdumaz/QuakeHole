@@ -45,9 +45,9 @@ int ArchDig_Crater (const avec3 centre, double radius, int boxes[][6], int max)
 				filled[z][y][x] = dx * dx + dy * dy + dz * dz <= radius * radius;
 			}
 
-	/* Cover them with boxes. The middle slab of the sphere goes first as tall
-	   boxes; taking the biggest pieces early keeps the count, and so the
-	   fragmentation of the world, down. Each box grows along x, then y, then z. */
+	/* Cover them with boxes: from each cube not yet covered, a box grows along
+	   x, then y, then z as far as it can. Fewer boxes means less fragmentation
+	   of the world. */
 	for (z = 0; z < size[2]; z++)
 		for (y = 0; y < size[1]; y++)
 			for (x = 0; x < size[0]; x++)
@@ -143,7 +143,10 @@ int ArchDig_BeamCell (const avec3 end, const avec3 dir, int (*solid) (const avec
 		ArchDig_CellBox (cell, mins, maxs);
 		for (k = 0; k < 3; k++)
 			centre[k] = (mins[k] + maxs[k]) * 0.5;
-		if (solid (centre))
+		/* the centre covers a beam on a grid line, where the point itself touches
+		   several cubes; the point covers slopes, where a cube can be solid under
+		   the beam while its centre is in the air */
+		if (solid (centre) || solid (q))
 			return 1;
 	}
 	return 0;
@@ -158,19 +161,28 @@ void ArchDig_DwellReset (adwell_t *d)
 
 int ArchDig_Dwell (adwell_t *d, const int cell[3], double now, double hold)
 {
-	if (!d->valid || cell[0] != d->cell[0] || cell[1] != d->cell[1] || cell[2] != d->cell[2] ||
-	    now - d->last > ARCH_DIG_GAP)
+	int	same = d->valid && cell[0] == d->cell[0] && cell[1] == d->cell[1] && cell[2] == d->cell[2];
+	int	unbroken = d->valid && now >= d->last && now - d->last <= ARCH_DIG_GAP;	/* time runs backwards after a map restart */
+	int	just_fired = d->fired;
+
+	d->fired = 0;
+	if (!same || !unbroken)
 	{
-		/* a new cube, or the beam was interrupted: start timing again */
+		/* A new cube, or the beam was interrupted: start timing again. The one
+		   exception is the cube behind one that just went: its time counts from
+		   that moment, so boring straight in takes the hold time per cube. */
+		if (!(unbroken && just_fired))
+			d->since = now;
 		d->valid = 1;
 		d->cell[0] = cell[0]; d->cell[1] = cell[1]; d->cell[2] = cell[2];
-		d->since = d->last = now;
+		d->last = now;
 		return 0;
 	}
 	d->last = now;
 	if (now - d->since >= hold - 1e-9)
 	{
 		d->since = now;
+		d->fired = 1;
 		return 1;
 	}
 	return 0;

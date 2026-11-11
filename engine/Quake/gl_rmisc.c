@@ -408,6 +408,7 @@ void R_NewMap (void)
 	{
 		ArchRender_NewMap ();
 		ArchBuild_NewMap ();
+		ArchGame_NewMap ();
 	}
 }
 

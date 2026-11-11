@@ -36,6 +36,7 @@ int    ArchWorld_BoxFromCorners (const int a[3], const int b[3], int mins[3], in
 void   ArchWorld_Trace (const avec3 start, const avec3 end, const avec3 mins, const avec3 maxs, atrace_t *tr);
 int    ArchWorld_PointSolid (const avec3 p);	/* inside or on a brush, or outside the build volume */
 
+int    ArchWorld_Revision (void);		/* changes whenever a brush is added or removed */
 int    ArchWorld_BrushCount (void);		/* live brushes */
 int    ArchWorld_SlotCount (void);		/* highest id + 1 */
 const abrush_t *ArchWorld_Brush (int id);	/* NULL for a free slot */
