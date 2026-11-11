@@ -463,12 +463,9 @@ static void run_dig_events (void)
 	num_dig_events = 0;
 	if (ArchWorld_Revision () != revision)
 	{
-		if (Arch_Active ())
-		{
-			ArchPads_Prune (ArchWorld_PointSolid);
-			ArchBuild_WorldChanged ();
-		}
-		else
+		ArchPads_Prune (ArchWorld_PointSolid);	/* in either world, pads lose dug-away floors */
+		ArchBuild_WorldChanged ();
+		if (!Arch_Active ())
 			ArchSurf_Commit ();
 		drop_unsupported_entities ();
 	}
@@ -519,6 +516,7 @@ qboolean ArchGame_CampaignEdit (void *shape_ptr, qboolean carve, vec3_t at)
 	if (ArchWorld_Revision () != revision)
 	{
 		ArchSurf_Commit ();
+		ArchPads_Prune (ArchWorld_PointSolid);
 		drop_unsupported_entities ();
 	}
 	return ok != 0;

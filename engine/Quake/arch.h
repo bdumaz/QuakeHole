@@ -43,6 +43,8 @@ qboolean	ArchBuild_KeyEvent (int key, qboolean down);	/* true if build mode used
 qboolean	ArchBuild_MouseMove (int dx, int dy);		/* true if the movement must not turn the view */
 void		ArchBuild_Draw (void);				/* cursor and preview, after the world */
 void		ArchBuild_DrawHUD (void);
+void		ArchBuild_DrawIntro (void);			/* the cube room's welcome text */
+void		ArchBuild_EndSession (void);			/* a normal game is starting: no build mode outside the cube room */
 
 /* arch_surf.c: the drawing side of digging in campaign maps */
 qboolean	ArchSurf_Dug (void);				/* the current map has been dug since it started */

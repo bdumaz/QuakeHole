@@ -1098,6 +1098,7 @@ void SCR_UpdateScreen (void)
 	{
 		SCR_DrawCrosshair (); //johnfitz
 		ArchBuild_DrawHUD (); // QUAKEARCH
+		ArchBuild_DrawIntro (); // QUAKEARCH
 		SCR_DrawNet ();
 		SCR_DrawTurtle ();
 		SCR_DrawPause ();

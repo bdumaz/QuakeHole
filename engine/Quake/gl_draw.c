@@ -522,6 +522,34 @@ void Draw_Pic (int x, int y, qpic_t *pic)
 	glEnd ();
 }
 
+/* QUAKEARCH: a horizontal band of a picture, rows srcy to srcy + h, drawn at x, y */
+void Draw_SubPic (int x, int y, qpic_t *pic, int srcy, int h)
+{
+	glpic_t	*gl;
+	float	t0, t1;
+
+	if (h <= 0 || srcy >= pic->height)
+		return;
+	if (srcy + h > pic->height)
+		h = pic->height - srcy;
+	if (scrap_dirty)
+		Scrap_Upload ();
+	gl = (glpic_t *)pic->data;
+	t0 = gl->tl + (gl->th - gl->tl) * srcy / pic->height;
+	t1 = gl->tl + (gl->th - gl->tl) * (srcy + h) / pic->height;
+	GL_Bind (gl->gltexture);
+	glBegin (GL_QUADS);
+	glTexCoord2f (gl->sl, t0);
+	glVertex2f (x, y);
+	glTexCoord2f (gl->sh, t0);
+	glVertex2f (x+pic->width, y);
+	glTexCoord2f (gl->sh, t1);
+	glVertex2f (x+pic->width, y+h);
+	glTexCoord2f (gl->sl, t1);
+	glVertex2f (x, y+h);
+	glEnd ();
+}
+
 /*
 =============
 Draw_TransPicTranslate -- johnfitz -- rewritten to use texmgr to do translation

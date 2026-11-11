@@ -35,6 +35,13 @@ static acursor_t	cursor;
 static qboolean		cursor_valid;
 static qboolean		cursor_pinned;	/* snapped to a surface with R: it no longer follows the aim */
 static avec3		cursor_hit;	/* where the aim last met a surface */
+static qboolean		unfreeze_check;	/* the first player frame of a map has not run yet */
+
+/* Build mode is offered in the cube room, and in any map reached from it
+   through the console. A game started from the menu is played as normal. */
+static qboolean		build_session;
+static qboolean		intro_pending;	/* show the welcome text once the cube room is on screen */
+static double		intro_until;
 
 static edict_t *build_player (void)
 {
@@ -84,7 +91,7 @@ static void ArchBuild_Toggle_f (void)
 
 	if (!Arch_BrushWorld () || !ent)
 	{
-		Con_Printf ("arch: build mode needs the arch map or a converted campaign map\n");
+		Con_Printf ("arch: build mode needs the cube room or a converted campaign map\n");
 		return;
 	}
 	if (build_active)
@@ -92,8 +99,13 @@ static void ArchBuild_Toggle_f (void)
 		leave_build_mode (true);
 		return;
 	}
-	if (ent->v.health <= 0)
+	if (!Arch_Active () && !build_session)
+	{
+		Con_Printf ("Build mode is not available in a normal game. Choose Build Mode in the main menu.\n");
 		return;
+	}
+	if (ent->v.health <= 0 || ent->v.movetype == MOVETYPE_NONE)
+		return;		/* dead, or frozen by the game (the intermission) */
 	if (!gesture_ready)
 	{
 		ArchGesture_Init (&gesture);
@@ -115,6 +127,7 @@ static void ArchBuild_Toggle_f (void)
 /* the server is starting a map: whatever mode we were in belonged to the last one */
 void ArchBuild_MapChanged (void)
 {
+	unfreeze_check = true;
 	build_active = false;
 	if (gesture_ready)
 		ArchGesture_Cancel (&gesture);
@@ -131,9 +144,15 @@ void ArchBuild_PlayerFrame (edict_t *ent)
 {
 	if (build_active && (ent->v.movetype != MOVETYPE_NONE || ent->v.health <= 0))
 		leave_build_mode (false);
-	/* a savegame made in build mode loads a frozen player with build mode off */
-	if (!build_active && ent->v.movetype == MOVETYPE_NONE && ent->v.health > 0)
-		ent->v.movetype = MOVETYPE_WALK;
+	/* A savegame made in build mode loads a frozen player with build mode off.
+	   Only the first frame of a map is checked: later, a frozen player is the
+	   game's own doing (the intermission at the end of a level). */
+	if (unfreeze_check && !build_active)
+	{
+		unfreeze_check = false;
+		if (ent->v.movetype == MOVETYPE_NONE && ent->v.health > 0)
+			ent->v.movetype = MOVETYPE_WALK;
+	}
 }
 
 /* ----------------------------------------------------------- the actions */
@@ -753,6 +772,98 @@ void ArchBuild_DrawHUD (void)
 	glPopMatrix ();
 }
 
+/* ------------------------------------------------------------ game flow */
+
+/* the main menu's Build Mode entry */
+static void ArchBuild_Session_f (void)
+{
+	build_session = true;
+	intro_pending = true;
+	intro_until = 0;
+	/* run straight away, ahead of anything else queued */
+	Cbuf_InsertText ("disconnect\nmaxplayers 1\ndeathmatch 0\ncoop 0\nmap " ARCH_MAPNAME "\n");
+}
+
+/* a game started from the menu (new game, load, multiplayer) is a normal game */
+void ArchBuild_EndSession (void)
+{
+	build_session = false;
+	intro_pending = false;
+	intro_until = 0;
+}
+
+static const char *intro_text =
+	"This is build mode. You can edit this map or load an existing map through the console, "
+	"for example with 'map E1M1'. Maps cannot be saved in this version yet.";
+static const char *intro_hint = "Press B to start building.";
+
+/* the welcome text in the cube room, for 20 seconds or until build mode is entered */
+void ArchBuild_DrawIntro (void)
+{
+	char		lines[8][96];
+	const char	*s = intro_text;
+	int		scale, width, n = 0, i, top, boxw;
+
+	if (intro_pending)
+	{
+		if (!Arch_Active () || cls.signon != SIGNONS)
+			return;
+		intro_pending = false;
+		intro_until = realtime + 20;
+	}
+	if (realtime > intro_until)
+		return;
+	if (!Arch_Active () || build_active || key_dest != key_game)
+	{
+		if (build_active || !Arch_Active ())
+			intro_until = 0;
+		return;
+	}
+
+	scale = glheight / 360;
+	if (scale < 1)
+		scale = 1;
+	width = glwidth / scale / 8 - 6;
+	if (width > 52)
+		width = 52;
+	/* word wrap */
+	while (*s && n < 7)
+	{
+		int len = (int) strlen (s), cut = len;
+		if (len > width)
+		{
+			for (cut = width; cut > 0 && s[cut] != ' '; cut--)
+				;
+			if (!cut)
+				cut = width;
+		}
+		q_strlcpy (lines[n], s, cut + 1 < (int) sizeof(lines[n]) ? cut + 1 : (int) sizeof(lines[n]));
+		n++;
+		s += cut;
+		while (*s == ' ')
+			s++;
+	}
+
+	GL_SetCanvas (CANVAS_DEFAULT);
+	glPushMatrix ();
+	glScalef ((float) scale, (float) scale, 1);
+	boxw = width * 8 + 32;
+	top = glheight / scale / 2 + 24;
+	Draw_Fill ((glwidth / scale - boxw) / 2, top - 12, boxw, (n + 2) * 12 + 16, 0, 0.6f);
+	for (i = 0; i < n; i++)
+		Draw_String ((glwidth / scale - (int) strlen (lines[i]) * 8) / 2, top + i * 12, lines[i]);
+	{
+		/* the hint in the alternate (gold) colour */
+		char	hint[64];
+		int	k;
+		q_strlcpy (hint, intro_hint, sizeof(hint));
+		for (k = 0; hint[k]; k++)
+			hint[k] |= 0x80;
+		Draw_String ((glwidth / scale - (int) strlen (hint) * 8) / 2, top + (n + 1) * 12, hint);
+	}
+	glPopMatrix ();
+}
+
 /* ------------------------------------------------------------------ init */
 
 /* A config.cfg saved by an earlier version starts with "unbindall" and knows
@@ -783,6 +894,7 @@ void ArchBuild_Init (void)
 {
 	Cvar_RegisterVariable (&arch_drag_speed);
 	Cmd_AddCommand ("arch_build", ArchBuild_Toggle_f);
+	Cmd_AddCommand ("arch_buildmode", ArchBuild_Session_f);
 	Cmd_AddCommand ("arch_action", ArchBuild_Action_f);
 	Cmd_AddCommand ("arch_snap", ArchBuild_Snap_f);
 	Cmd_AddCommand ("+arch_primary", ArchBuild_PrimaryDown_f);

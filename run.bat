@@ -31,8 +31,8 @@ if not exist "%PAKS%\pak1.pak" echo Warning: pak1.pak not found in "%PAKS%". The
 rem An empty config.cfg here stops the engine falling back to the one in Quake's id1 folder.
 if not exist "%ROOT%game\arch\config.cfg" echo // QuakeArch settings>"%ROOT%game\arch\config.cfg"
 
-rem Commands come first: the engine only keeps the first 256 characters for + commands.
-"%EXE%" +map arch %* -basedir "%QUAKE%" -archdir "%ROOT%game\arch"
+rem The game opens on the main menu. Commands come first: the engine only keeps the first 256 characters for + commands.
+"%EXE%" +menu_main %* -basedir "%QUAKE%" -archdir "%ROOT%game\arch"
 exit /b %errorlevel%
 
 :noexe

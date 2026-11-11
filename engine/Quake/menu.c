@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "arch.h" // QUAKEARCH
 #include "bgmusic.h"
 
 void (*vid_menucmdfn)(void); //johnfitz
@@ -238,7 +239,7 @@ void M_ToggleMenu_f (void)
 /* MAIN MENU */
 
 int	m_main_cursor;
-#define	MAIN_ITEMS	5
+#define	MAIN_ITEMS	6	// QUAKEARCH: Build Mode added after Multiplayer
 
 
 void M_Menu_Main_f (void)
@@ -255,19 +256,83 @@ void M_Menu_Main_f (void)
 }
 
 
+// QUAKEARCH: text drawn larger than the console font, for the title and the extra menu entry
+static void M_DrawBigText (int x, int y, int scale, const char *s, qboolean gold)
+{
+	int	i;
+
+	glPushMatrix ();
+	glTranslatef ((float) x, (float) y, 0);
+	glScalef ((float) scale, (float) scale, 1);
+	for (i = 0; s[i]; i++)
+		Draw_Character (i * 8, 0, (unsigned char) s[i] | (gold ? 0x80 : 0));
+	glPopMatrix ();
+}
+
+// QUAKEARCH: the credits along the bottom of the screen, wrapped to fit
+static void M_DrawCredits (void)
+{
+	static const char *credits = "Based on QuakeSpasm. Made with Claude AI. QuakeHole is free software under the GNU General Public Licence, Version 2 or later.";
+	char		line[160];
+	const char	*s = credits;
+	int		scale, width, rows = 0, y, len, cut;
+	const char	*starts[4];
+	int		lens[4];
+
+	scale = glheight / 540;
+	if (scale < 1)
+		scale = 1;
+	width = glwidth / scale / 8 - 4;
+	while (*s && rows < 4)
+	{
+		len = (int) strlen (s);
+		cut = len;
+		if (len > width)
+		{
+			for (cut = width; cut > 0 && s[cut] != ' '; cut--)
+				;
+			if (!cut)
+				cut = width;
+		}
+		starts[rows] = s;
+		lens[rows] = cut;
+		rows++;
+		s += cut;
+		while (*s == ' ')
+			s++;
+	}
+	GL_SetCanvas (CANVAS_DEFAULT);
+	glPushMatrix ();
+	glScalef ((float) scale, (float) scale, 1);
+	y = glheight / scale - rows * 10 - 6;
+	for (cut = 0; cut < rows; cut++)
+	{
+		q_strlcpy (line, starts[cut], lens[cut] + 1 < (int) sizeof(line) ? lens[cut] + 1 : (int) sizeof(line));
+		Draw_String ((glwidth / scale - (int) strlen (line) * 8) / 2, y + cut * 10, line);
+	}
+	glPopMatrix ();
+	GL_SetCanvas (CANVAS_MENU);
+}
+
 void M_Main_Draw (void)
 {
 	int		f;
 	qpic_t	*p;
 
 	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
-	p = Draw_CachePic ("gfx/ttl_main.lmp");
-	M_DrawPic ( (320-p->width)/2, 4, p);
-	M_DrawTransPic (72, 32, Draw_CachePic ("gfx/mainmenu.lmp") );
+	M_DrawBigText ((320 - 9 * 8 * 2) / 2, 8, 2, "QuakeHole", true); // QUAKEARCH: the game's title
+
+	// QUAKEARCH: the stock menu picture, split after its second entry to make room for Build Mode
+	p = Draw_CachePic ("gfx/mainmenu.lmp");
+	Draw_SubPic (72, 32, p, 0, 40);
+	M_DrawBigText (74, 74, 2, "BUILD MODE", true);
+	Draw_SubPic (72, 92, p, 40, p->height - 40);
 
 	f = (int)(realtime * 10)%6;
 
 	M_DrawTransPic (54, 32 + m_main_cursor * 20,Draw_CachePic( va("gfx/menudot%i.lmp", f+1 ) ) );
+
+	M_DrawCredits (); // QUAKEARCH
 }
 
 
@@ -314,15 +379,22 @@ void M_Main_Key (int key)
 			M_Menu_MultiPlayer_f ();
 			break;
 
-		case 2:
-			M_Menu_Options_f ();
+		case 2: // QUAKEARCH: Build Mode, in the cube room
+			IN_Activate();
+			key_dest = key_game;
+			m_state = m_none;
+			Cbuf_AddText ("arch_buildmode\n");
 			break;
 
 		case 3:
-			M_Menu_Help_f ();
+			M_Menu_Options_f ();
 			break;
 
 		case 4:
+			M_Menu_Help_f ();
+			break;
+
+		case 5:
 			M_Menu_Quit_f ();
 			break;
 		}
@@ -395,6 +467,7 @@ void M_SinglePlayer_Key (int key)
 					break;
 			IN_Activate();
 			key_dest = key_game;
+			ArchBuild_EndSession (); // QUAKEARCH: a new game is a normal game, with weapon digging only
 			if (sv.active)
 				Cbuf_AddText ("disconnect\n");
 			Cbuf_AddText ("maxplayers 1\n");
@@ -540,6 +613,7 @@ void M_Load_Key (int k)
 		SCR_BeginLoadingPlaque ();
 
 	// issue the load command
+		ArchBuild_EndSession (); // QUAKEARCH
 		Cbuf_AddText (va ("load s%i\n", load_cursor) );
 		return;
 
@@ -2366,6 +2440,7 @@ void M_GameOptions_Key (int key)
 		S_LocalSound ("misc/menu2.wav");
 		if (gameoptions_cursor == 0)
 		{
+			ArchBuild_EndSession (); // QUAKEARCH
 			if (sv.active)
 				Cbuf_AddText ("disconnect\n");
 			Cbuf_AddText ("listen 0\n");	// so host_netport will be re-examined

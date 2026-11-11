@@ -2,7 +2,10 @@
 
 A live level-building prototype on the open-source Quake engine. You stand inside the level and shape it, then run, fly and shoot through what you built, with no compile step in between.
 
-The engine boots into a room made of live-editable brushes, with full Quake movement and a build mode that carves holes, pulls out blocks, cuts arches and places jump pads with the mouse. Levels export as standard `.map` files.
+The game opens on its main menu, titled QuakeHole:
+
+- **Single Player** and **Multiplayer** start Quake as normal, except that every weapon digs into the level.
+- **Build Mode** puts you in a room made of live-editable brushes, where you carve holes, pull out blocks, cut arches and place jump pads with the mouse. From there you can load any map through the console, for example `map E1M1`, and keep building in it. Levels in the cube room export as standard `.map` files; maps cannot be saved in this version yet.
 
 ## What you need
 
@@ -48,6 +51,8 @@ These defaults live in `game\arch\default.cfg`. Rebind keys in the Options menu;
 You have every weapon, ammunition does not run out, and nothing damages you. Rocket jumps still push you.
 
 ## Build mode
+
+Choose Build Mode in the main menu. In a game started from Single Player or Multiplayer, B does nothing apart from a reminder.
 
 Press B. You stop where you are (even in mid-air), the weapon disappears, and a rectangle, the build cursor, appears on whatever surface you aim at. It snaps to a quarter-metre grid and slides clear of adjoining floors, walls and ceilings, so aiming level at a wall gives a doorway that sits on the floor. Press B again to go back to moving.
 
@@ -115,7 +120,7 @@ When a campaign map loads, its solid space is rebuilt as the same kind of brushe
 
 After the first dig in a map the engine stops skipping rooms it believes are out of sight, since a hole may have joined them. Large maps draw somewhat slower from then until the map restarts.
 
-Build mode works in campaign maps as well: press B, and the cursor, both extrude actions, jump pads, the action wheel and snap behave as in the sandbox. What you add is textured from the nearest wall and lit evenly; it does not pick up the map's baked shadows. Two limits apply: the cursor only lands on surfaces that face straight along an axis and sit on whole units, so angled walls and a few odd ones will not take it; and monsters do not wait while you build.
+Build mode works in campaign maps you load from Build Mode (for example `map E1M1` in the console): press B, and the cursor, both extrude actions, jump pads, the action wheel and snap behave as in the sandbox. What you add is textured from the nearest wall and lit evenly; it does not pick up the map's baked shadows. Two limits apply: the cursor only lands on surfaces that face straight along an axis and sit on whole units, so angled walls and a few odd ones will not take it; and monsters do not wait while you build.
 
 The sandbox's free weapons and its damage rules stay in the sandbox. In the campaign you dig with the weapons and ammunition you find.
 
