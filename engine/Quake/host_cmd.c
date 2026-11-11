@@ -941,7 +941,7 @@ static void Host_Changelevel_f (void)
 
 	//johnfitz -- check for client having map before anything else
 	q_snprintf (level, sizeof(level), "maps/%s.bsp", Cmd_Argv(1));
-	if (strcmp (level, ARCH_BSPNAME) && !COM_FileExists(level, NULL)) // QUAKEARCH: the arch map has no file
+	if (q_strcasecmp (level, ARCH_BSPNAME) && !COM_FileExists(level, NULL)) // QUAKEARCH: the arch map has no file
 		Host_Error ("cannot find map %s", level);
 	//johnfitz
 

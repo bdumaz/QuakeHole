@@ -17,6 +17,9 @@ set "QUAKE=%STEAM%"
 if exist "%ROOT%Quake paks\pak0.pak" set "QUAKE=%ROOT%Quake paks"
 if exist "%ROOT%Quake paks\id1\pak0.pak" set "QUAKE=%ROOT%Quake paks"
 if exist "%ROOT%quakepath.txt" set /p QUAKE=<"%ROOT%quakepath.txt"
+rem tolerate quotes and a trailing backslash in quakepath.txt
+set "QUAKE=%QUAKE:"=%"
+if "%QUAKE:~-1%"=="\" set "QUAKE=%QUAKE:~0,-1%"
 
 set "PAKS=%QUAKE%\id1"
 if not exist "%PAKS%\pak0.pak" set "PAKS=%QUAKE%"

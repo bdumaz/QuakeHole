@@ -343,7 +343,7 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 //
 // load the file
 //
-	if (!strcmp (mod->name, ARCH_BSPNAME)) // QUAKEARCH: the arch map has no file; build its stub BSP in memory
+	if (!q_strcasecmp (mod->name, ARCH_BSPNAME)) // QUAKEARCH: the arch map has no file; build its stub BSP in memory
 	{
 		int stubsize;
 		buf = ArchStubBSP_Build (&stubsize);

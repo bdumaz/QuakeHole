@@ -15,13 +15,13 @@ option) any later version.
 typedef struct { int *ids; int count, cap; } cell_t;
 
 static abrush_t	**brushes;		/* indexed by id; NULL = free slot */
-static int	*stamps;		/* per id: last query that visited it */
+static unsigned	*stamps;		/* per id: last query that visited it */
 static int	num_slots, cap_slots;
 static int	*free_ids;
 static int	num_free, cap_free;
 static int	num_live;
 static int	max_brushes = ARCH_MAX_BRUSHES;
-static int	query_stamp;
+static unsigned	query_stamp;
 
 static cell_t		cells[ARCH_NUM_CELLS];
 static unsigned char	dirty[ARCH_NUM_CELLS];
@@ -104,7 +104,7 @@ static int insert_brush (abrush_t *b)
 		{
 			cap_slots = cap_slots ? cap_slots * 2 : 256;
 			brushes = (abrush_t **) realloc (brushes, cap_slots * sizeof(abrush_t *));
-			stamps = (int *) realloc (stamps, cap_slots * sizeof(int));
+			stamps = (unsigned *) realloc (stamps, cap_slots * sizeof(unsigned));
 		}
 		id = num_slots++;
 	}
@@ -144,15 +144,17 @@ static void remove_brush (int id)
 	free_ids[num_free++] = id;
 }
 
-/* ids of live brushes whose cells overlap the box; caller frees the result */
+/* ids of live brushes whose cells overlap the box. The result is a shared
+   scratch array, valid until the next call; edits must not start until the
+   caller has finished reading it. */
 static int *gather (const avec3 mins, const avec3 maxs, double pad, int *count)
 {
-	int lo[3], hi[3], x, y, z, i, n = 0, cap = 64;
-	int *ids = (int *) malloc (cap * sizeof(int));
+	static int *ids, cap;
+	int lo[3], hi[3], x, y, z, i, n = 0;
 
 	if (++query_stamp == 0)
 	{
-		memset (stamps, 0, num_slots * sizeof(int));
+		memset (stamps, 0, num_slots * sizeof(unsigned));
 		query_stamp = 1;
 	}
 	cell_range (mins, maxs, pad, lo, hi);
@@ -171,7 +173,7 @@ static int *gather (const avec3 mins, const avec3 maxs, double pad, int *count)
 					stamps[id] = query_stamp;
 					if (n == cap)
 					{
-						cap *= 2;
+						cap = cap ? cap * 2 : 256;
 						ids = (int *) realloc (ids, cap * sizeof(int));
 					}
 					ids[n++] = id;
@@ -293,7 +295,6 @@ int ArchWorld_Carve (const abrush_t *shape)
 		free (out);
 		removed[nremoved++] = ids[i];
 	}
-	free (ids);
 	ArchBrush_Free (clipped);
 
 	if (num_live - nremoved + pieces.count > max_brushes)
@@ -350,7 +351,6 @@ int ArchWorld_Add (const abrush_t *shape)
 		work = next;
 		memset (&next, 0, sizeof(next));
 	}
-	free (ids);
 
 	if (num_live + work.count > max_brushes)
 	{
@@ -407,7 +407,6 @@ void ArchWorld_Trace (const avec3 start, const avec3 end, const avec3 mins, cons
 			continue;
 		ArchBrush_TraceBox (b, start, end, mins, maxs, tr);
 	}
-	free (ids);
 }
 
 int ArchWorld_PointSolid (const avec3 p)
@@ -430,6 +429,5 @@ int ArchWorld_PointSolid (const avec3 p)
 		if (f == b->nfaces)
 			solid = 1;
 	}
-	free (ids);
 	return solid;
 }

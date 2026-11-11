@@ -17,7 +17,7 @@ static cvar_t	arch_tex_ceiling = {"arch_tex_ceiling", "ceiling1_3", CVAR_ARCHIVE
 
 qboolean Arch_Active (void)
 {
-	return sv.active && !strcmp (sv.modelname, ARCH_BSPNAME);
+	return sv.active && !q_strcasecmp (sv.modelname, ARCH_BSPNAME);
 }
 
 const char *Arch_Dir (void)
@@ -45,9 +45,10 @@ const char *Arch_Dir (void)
 
 void Arch_TextureNames (const char *names[3])
 {
-	names[ARCH_SLOT_GROUND] = arch_tex_ground.string;
-	names[ARCH_SLOT_WALL] = arch_tex_wall.string;
-	names[ARCH_SLOT_CEILING] = arch_tex_ceiling.string;
+	/* an empty name would write an invalid .map line */
+	names[ARCH_SLOT_GROUND] = arch_tex_ground.string[0] ? arch_tex_ground.string : arch_tex_ground.default_string;
+	names[ARCH_SLOT_WALL] = arch_tex_wall.string[0] ? arch_tex_wall.string : arch_tex_wall.default_string;
+	names[ARCH_SLOT_CEILING] = arch_tex_ceiling.string[0] ? arch_tex_ceiling.string : arch_tex_ceiling.default_string;
 }
 
 /* ---------------------------------------------------------- player rules */
@@ -71,6 +72,19 @@ void ArchGame_PlayerFrame (edict_t *ent)
 		ent->v.ammo_nails = 200;
 		ent->v.ammo_rockets = 100;
 		ent->v.ammo_cells = 100;
+
+		/* the big HUD counter follows the weapon in hand */
+		switch ((int) ent->v.weapon)
+		{
+		case IT_SHOTGUN:
+		case IT_SUPER_SHOTGUN:		ent->v.currentammo = ent->v.ammo_shells; break;
+		case IT_NAILGUN:
+		case IT_SUPER_NAILGUN:		ent->v.currentammo = ent->v.ammo_nails; break;
+		case IT_GRENADE_LAUNCHER:
+		case IT_ROCKET_LAUNCHER:	ent->v.currentammo = ent->v.ammo_rockets; break;
+		case IT_LIGHTNING:		ent->v.currentammo = ent->v.ammo_cells; break;
+		default:			break;
+		}
 	}
 
 	/* god mode blocks damage in the game code but still applies knockback, so rocket jumps work */
@@ -93,17 +107,24 @@ void ArchGame_PlayerFrame (edict_t *ent)
 /* parses "x1 y1 z1 x2 y2 z2" into a box brush; prints usage and returns NULL on bad input */
 static abrush_t *box_from_args (void)
 {
-	int	a[3], b[3], mins[3], maxs[3], i;
+	int	c[6], mins[3], maxs[3], i;
+	qboolean valid = Cmd_Argc () == 7;
 
-	if (Cmd_Argc () == 7)
+	for (i = 0; i < 6 && valid; i++)
 	{
-		for (i = 0; i < 3; i++)
-		{
-			a[i] = atoi (Cmd_Argv (1 + i));
-			b[i] = atoi (Cmd_Argv (4 + i));
-		}
-		if (ArchWorld_BoxFromCorners (a, b, mins, maxs))
-			return ArchBrush_Box (mins, maxs);
+		char	*end;
+		long	v = strtol (Cmd_Argv (1 + i), &end, 10);
+
+		if (end == Cmd_Argv (1 + i) || *end)
+			valid = false;	/* not a whole number */
+		/* nothing outside the build volume matters, and huge values would not make a valid brush */
+		c[i] = v < -ARCH_HALF ? -ARCH_HALF : v > ARCH_HALF ? ARCH_HALF : (int) v;
+	}
+	if (valid && ArchWorld_BoxFromCorners (c, c + 3, mins, maxs))
+	{
+		abrush_t *box = ArchBrush_Box (mins, maxs);
+		if (box)
+			return box;
 	}
 	Con_Printf ("usage: %s x1 y1 z1 x2 y2 z2\n", Cmd_Argv (0));
 	return NULL;

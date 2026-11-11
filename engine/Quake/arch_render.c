@@ -244,7 +244,7 @@ void ArchRender_Draw (void)
 		return;
 	rebuild_meshes ();
 
-	GL_BindBufferFunc (GL_ARRAY_BUFFER, 0);
+	GL_BindBuffer (GL_ARRAY_BUFFER, 0);
 	GL_ClientActiveTextureFunc (GL_TEXTURE0_ARB);
 	glEnableClientState (GL_VERTEX_ARRAY);
 	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
