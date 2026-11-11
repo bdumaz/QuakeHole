@@ -1,4 +1,5 @@
 #include "t.h"
+#include <stdlib.h>
 #include "arch_brush.h"
 
 static int count_faces (const abrush_t *b, double nx, double ny, double nz, int slot)
@@ -76,9 +77,169 @@ static void test_prism (void)
 	ArchBrush_Free (p2);
 }
 
+static abrush_t *box6 (int x1, int y1, int z1, int x2, int y2, int z2)
+{
+	int mn[3], mx[3];
+	mn[0] = x1; mn[1] = y1; mn[2] = z1;
+	mx[0] = x2; mx[1] = y2; mx[2] = z2;
+	return ArchBrush_Box (mn, mx);
+}
+
+static abrush_t *wedge (void)
+{
+	/* right triangle (0,0,0),(64,0,0),(0,64,0) extruded 64 up */
+	int tri[3][3] = {{0, 0, 0}, {64, 0, 0}, {0, 64, 0}}, ex[3] = {0, 0, 64};
+	return ArchBrush_Prism (tri, 3, ex);
+}
+
+static void free_pieces (abrush_t **pieces, int n)
+{
+	int i;
+	for (i = 0; i < n; i++)
+		ArchBrush_Free (pieces[i]);
+	free (pieces);
+}
+
+static double pieces_volume (abrush_t **pieces, int n)
+{
+	double v = 0;
+	int i;
+	for (i = 0; i < n; i++)
+		v += ArchBrush_Volume (pieces[i]);
+	return v;
+}
+
+/* pieces must not overlap each other or the subtracted brush */
+static void check_disjoint (abrush_t **pieces, int n, const abrush_t *cut)
+{
+	int i, j;
+	for (i = 0; i < n; i++)
+	{
+		CHECK (!ArchBrush_Intersects (pieces[i], cut));
+		for (j = i + 1; j < n; j++)
+			CHECK (!ArchBrush_Intersects (pieces[i], pieces[j]));
+	}
+}
+
+static aplane_t plane_x (int x)
+{
+	/* normal +x at the given x */
+	int a[3], b[3], c[3];
+	avec3 inside;
+	aplane_t pl;
+	a[0] = b[0] = c[0] = x;
+	a[1] = 0; a[2] = 0; b[1] = 64; b[2] = 0; c[1] = 0; c[2] = 64;
+	ArchPlane_FromPoints (a, b, c, &pl);
+	inside[0] = x - 1.0; inside[1] = 0; inside[2] = 0;
+	if (pl.n[0] < 0)
+		ArchPlane_Flip (&pl, &pl);
+	(void) inside;
+	return pl;
+}
+
+static void test_split (void)
+{
+	abrush_t *A = box6 (0, 0, 0, 64, 64, 64), *front, *back;
+	aplane_t pl = plane_x (16), thin[6];
+	int i;
+
+	CHECK_NEAR (pl.n[0], 1.0, 1e-9);
+	ArchBrush_Split (A, &pl, &front, &back);
+	CHECK (front && back);
+	CHECK_NEAR (ArchBrush_Volume (front), 48.0 * 64 * 64, 1e-6);
+	CHECK_NEAR (ArchBrush_Volume (back), 16.0 * 64 * 64, 1e-6);
+	ArchBrush_Free (front); ArchBrush_Free (back);
+
+	pl = plane_x (100);	/* misses: everything is behind */
+	ArchBrush_Split (A, &pl, &front, &back);
+	CHECK (front == NULL && back != NULL);
+	CHECK_NEAR (ArchBrush_Volume (back), 64.0 * 64 * 64, 1e-6);
+	ArchBrush_Free (back);
+
+	pl = plane_x (64);	/* coincident with a face */
+	ArchBrush_Split (A, &pl, &front, &back);
+	CHECK (front == NULL && back != NULL);
+	CHECK_NEAR (ArchBrush_Volume (back), 64.0 * 64 * 64, 1e-6);
+	ArchBrush_Free (back);
+
+	/* a slab 0.005 thick is discarded by the thin rule */
+	for (i = 0; i < 6; i++)
+		thin[i] = A->faces[i].plane;
+	for (i = 0; i < 6; i++)
+		if (thin[i].n[0] > 0.5)
+			thin[i].d = 0.005;
+	CHECK (ArchBrush_FromPlanes (thin, 6) == NULL);
+	ArchBrush_Free (A);
+}
+
+static void test_subtract (void)
+{
+	abrush_t *A = box6 (0, 0, 0, 64, 64, 64);
+	abrush_t *B = box6 (16, 16, 16, 48, 48, 48);
+	abrush_t *B2 = box6 (100, 100, 100, 120, 120, 120);
+	abrush_t *B3 = box6 (64, 0, 0, 96, 64, 64);	/* touches on a face only */
+	abrush_t *B4 = box6 (-8, -8, -8, 72, 72, 72);
+	abrush_t *B5 = wedge ();
+	abrush_t *B6 = box6 (32, 32, 32, 96, 96, 96);
+	abrush_t **pieces, *both;
+	const double volA = 64.0 * 64 * 64;
+	int n;
+
+	n = ArchBrush_Subtract (A, B, &pieces);
+	CHECK (n == 6);
+	CHECK_NEAR (pieces_volume (pieces, n), volA - 32.0 * 32 * 32, 1e-6);
+	check_disjoint (pieces, n, B);
+	free_pieces (pieces, n);
+
+	n = ArchBrush_Subtract (A, B2, &pieces);
+	CHECK (n == 1);
+	CHECK_NEAR (pieces_volume (pieces, n), volA, 1e-6);
+	free_pieces (pieces, n);
+	CHECK (!ArchBrush_Intersects (A, B2));
+
+	n = ArchBrush_Subtract (A, B3, &pieces);	/* Review Focus 3 */
+	CHECK (n == 1);
+	CHECK_NEAR (pieces_volume (pieces, n), volA, 1e-6);
+	free_pieces (pieces, n);
+	CHECK (!ArchBrush_Intersects (A, B3));
+	CHECK (ArchBrush_Intersection (A, B3) == NULL);
+
+	n = ArchBrush_Subtract (A, B4, &pieces);
+	CHECK (n == 0);
+	CHECK (pieces == NULL);
+
+	CHECK (B5 != NULL);
+	n = ArchBrush_Subtract (A, B5, &pieces);
+	CHECK (n >= 1);
+	CHECK_NEAR (pieces_volume (pieces, n), volA - 64.0 * 64 / 2 * 64, 1e-6);
+	check_disjoint (pieces, n, B5);
+	free_pieces (pieces, n);
+
+	/* volume(A) == volume(A - X) + volume(A n X) */
+	n = ArchBrush_Subtract (A, B6, &pieces);
+	both = ArchBrush_Intersection (A, B6);
+	CHECK (both != NULL);
+	CHECK_NEAR (ArchBrush_Volume (both), 32.0 * 32 * 32, 1e-6);
+	CHECK_NEAR (pieces_volume (pieces, n) + ArchBrush_Volume (both), volA, 1e-6);
+	check_disjoint (pieces, n, B6);
+	free_pieces (pieces, n);
+	ArchBrush_Free (both);
+
+	both = ArchBrush_Intersection (A, B5);
+	n = ArchBrush_Subtract (A, B5, &pieces);
+	CHECK_NEAR (pieces_volume (pieces, n) + ArchBrush_Volume (both), volA, 1e-6);
+	free_pieces (pieces, n);
+	ArchBrush_Free (both);
+
+	ArchBrush_Free (A); ArchBrush_Free (B); ArchBrush_Free (B2); ArchBrush_Free (B3);
+	ArchBrush_Free (B4); ArchBrush_Free (B5); ArchBrush_Free (B6);
+}
+
 void test_brush (void)
 {
 	test_box ();
 	test_plane ();
 	test_prism ();
+	test_split ();
+	test_subtract ();
 }

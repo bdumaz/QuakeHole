@@ -464,3 +464,101 @@ int ArchBrush_PointInside (const abrush_t *b, const avec3 p)
 	}
 	return 1;
 }
+
+/* ------------------------------------------------------------------- CSG */
+
+static abrush_t *brush_with_plane (const abrush_t *b, const aplane_t *extra)
+{
+	aplane_t	*planes = (aplane_t *) malloc ((b->nfaces + 1) * sizeof(aplane_t));
+	abrush_t	*r;
+	int		i;
+
+	for (i = 0; i < b->nfaces; i++)
+		planes[i] = b->faces[i].plane;
+	planes[b->nfaces] = *extra;
+	r = ArchBrush_FromPlanes (planes, b->nfaces + 1);
+	free (planes);
+	return r;
+}
+
+void ArchBrush_Split (const abrush_t *b, const aplane_t *pl, abrush_t **front, abrush_t **back)
+{
+	aplane_t	flipped;
+
+	ArchPlane_Flip (pl, &flipped);
+	*front = brush_with_plane (b, &flipped);
+	*back = brush_with_plane (b, pl);
+}
+
+static int boxes_overlap (const abrush_t *a, const abrush_t *b)
+{
+	int	k;
+
+	for (k = 0; k < 3; k++)
+	{
+		if (a->mins[k] >= b->maxs[k] - ARCH_THIN_EPS || b->mins[k] >= a->maxs[k] - ARCH_THIN_EPS)
+			return 0;
+	}
+	return 1;
+}
+
+abrush_t *ArchBrush_Intersection (const abrush_t *a, const abrush_t *b)
+{
+	aplane_t	*planes;
+	abrush_t	*r;
+	int		i;
+
+	if (!boxes_overlap (a, b))
+		return NULL;
+	planes = (aplane_t *) malloc ((a->nfaces + b->nfaces) * sizeof(aplane_t));
+	for (i = 0; i < a->nfaces; i++)
+		planes[i] = a->faces[i].plane;
+	for (i = 0; i < b->nfaces; i++)
+		planes[a->nfaces + i] = b->faces[i].plane;
+	r = ArchBrush_FromPlanes (planes, a->nfaces + b->nfaces);
+	free (planes);
+	return r;
+}
+
+int ArchBrush_Intersects (const abrush_t *a, const abrush_t *b)
+{
+	abrush_t	*r = ArchBrush_Intersection (a, b);
+
+	if (!r)
+		return 0;
+	ArchBrush_Free (r);
+	return 1;
+}
+
+int ArchBrush_Subtract (const abrush_t *a, const abrush_t *b, abrush_t ***out)
+{
+	abrush_t	**pieces, *rest, *front, *back;
+	int		i, n = 0;
+
+	pieces = (abrush_t **) malloc ((b->nfaces + 1) * sizeof(abrush_t *));
+	if (!ArchBrush_Intersects (a, b))
+	{
+		pieces[0] = ArchBrush_Clone (a);
+		*out = pieces;
+		return 1;
+	}
+
+	rest = ArchBrush_Clone (a);
+	for (i = 0; i < b->nfaces && rest; i++)
+	{
+		ArchBrush_Split (rest, &b->faces[i].plane, &front, &back);
+		if (front)
+			pieces[n++] = front;
+		ArchBrush_Free (rest);
+		rest = back;
+	}
+	ArchBrush_Free (rest);	/* the part inside b */
+
+	if (!n)
+	{
+		free (pieces);
+		pieces = NULL;
+	}
+	*out = pieces;
+	return n;
+}

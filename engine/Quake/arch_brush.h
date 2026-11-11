@@ -37,4 +37,12 @@ void      ArchBrush_Free (abrush_t *b);						/* NULL is allowed */
 double    ArchBrush_Volume (const abrush_t *b);
 int       ArchBrush_PointInside (const abrush_t *b, const avec3 p);	/* strictly inside by more than ARCH_ON_EPS */
 
+/* front is the part on the normal side of pl; either result may be NULL */
+void      ArchBrush_Split (const abrush_t *b, const aplane_t *pl, abrush_t **front, abrush_t **back);
+abrush_t *ArchBrush_Intersection (const abrush_t *a, const abrush_t *b);	/* NULL if no shared volume */
+int       ArchBrush_Intersects (const abrush_t *a, const abrush_t *b);
+/* a minus b as non-overlapping convex pieces. Returns the piece count;
+   *out is malloc'd (NULL when the count is 0), caller frees the array and the pieces. */
+int       ArchBrush_Subtract (const abrush_t *a, const abrush_t *b, abrush_t ***out);
+
 #endif /* ARCH_BRUSH_H */
