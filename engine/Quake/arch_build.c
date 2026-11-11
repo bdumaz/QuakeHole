@@ -54,6 +54,7 @@ static void leave_build_mode (qboolean restore_player)
 		return;
 	build_active = false;
 	ArchGesture_Cancel (&gesture);
+	gesture.secondary = 0;
 	if (restore_player && ent)
 	{
 		ent->v.movetype = saved_movetype;
@@ -85,8 +86,11 @@ static void ArchBuild_Toggle_f (void)
 		gesture_ready = true;
 	}
 	ArchGesture_Cancel (&gesture);
-	saved_movetype = ent->v.movetype;
+	gesture.secondary = 0;
+	saved_movetype = ent->v.movetype == MOVETYPE_NONE ? MOVETYPE_WALK : ent->v.movetype;
 	ent->v.movetype = MOVETYPE_NONE;
+	/* weapon kick does not decay while frozen; clear it so the view is level */
+	ent->v.punchangle[0] = ent->v.punchangle[1] = ent->v.punchangle[2] = 0;
 	ent->v.velocity[0] = ent->v.velocity[1] = ent->v.velocity[2] = 0;
 	cursor_valid = false;
 	build_active = true;
@@ -99,6 +103,9 @@ void ArchBuild_PlayerFrame (edict_t *ent)
 {
 	if (build_active && (ent->v.movetype != MOVETYPE_NONE || ent->v.health <= 0))
 		leave_build_mode (false);
+	/* a savegame made in build mode loads a frozen player with build mode off */
+	if (!build_active && ent->v.movetype == MOVETYPE_NONE && ent->v.health > 0)
+		ent->v.movetype = MOVETYPE_WALK;
 }
 
 /* -------------------------------------------------------------- the edit */
@@ -157,6 +164,12 @@ static void primary_up (void)
 
 	if (!build_active)
 		return;
+	if (key_dest != key_game || cl.paused)
+	{
+		/* released behind a menu, the console or a pause: never commit */
+		ArchGesture_Cancel (&gesture);
+		return;
+	}
 	act = ArchGesture_PrimaryUp (&gesture, &depth);
 	if (act != ARCH_ACT_NONE)
 		apply_extrude_quad (depth);
@@ -242,8 +255,10 @@ static void ArchBuild_SecondaryUp_f (void)	{ secondary (false); }
 
 static void ArchBuild_Wheel_f (void)
 {
-	if (Cmd_Argc () == 2)
-		wheel (atoi (Cmd_Argv (1)) > 0 ? 1 : -1);
+	int	n = Cmd_Argc () == 2 ? atoi (Cmd_Argv (1)) : 0;
+
+	if (n)
+		wheel (n > 0 ? 1 : -1);
 }
 
 static void ArchBuild_Drag_f (void)
@@ -277,7 +292,10 @@ static void update_cursor (void)
 	for (k = 0; k < 3; k++)
 		hit[k] = start[k] + tr.fraction * (end[k] - start[k]);
 	if (ArchCursor_Place (hit, tr.normal, cl.viewangles[YAW], gesture.width, gesture.height, &cursor))
+	{
+		ArchCursor_Fit (&cursor, ArchWorld_PointSolid);
 		cursor_valid = true;
+	}
 }
 
 static void quad (const avec3 a, const avec3 b, const avec3 c, const avec3 d)
@@ -342,7 +360,8 @@ void ArchBuild_Draw (void)
 	if (!cursor_valid)
 		return;
 
-	GL_UseProgramFunc (0);
+	if (GL_UseProgramFunc)	/* absent with -noglsl or an old driver */
+		GL_UseProgramFunc (0);
 	glDisable (GL_TEXTURE_2D);
 	glDisable (GL_CULL_FACE);
 	glEnable (GL_BLEND);
@@ -357,7 +376,8 @@ void ArchBuild_Draw (void)
 	glLineWidth (1);
 	glDepthMask (GL_TRUE);
 	glDisable (GL_BLEND);
-	glEnable (GL_CULL_FACE);
+	if (gl_cull.value)
+		glEnable (GL_CULL_FACE);
 	glEnable (GL_TEXTURE_2D);
 	glColor4f (1, 1, 1, 1);
 }

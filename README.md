@@ -49,7 +49,7 @@ You have every weapon, ammunition does not run out, and nothing damages you. Roc
 
 ## Build mode
 
-Press B. You stop where you are (even in mid-air), the weapon disappears, and a rectangle, the build cursor, appears on whatever surface you aim at. It snaps to a quarter-metre grid. Press B again to go back to moving.
+Press B. You stop where you are (even in mid-air), the weapon disappears, and a rectangle, the build cursor, appears on whatever surface you aim at. It snaps to a quarter-metre grid and slides clear of adjoining floors, walls and ceilings, so aiming level at a wall gives a doorway that sits on the floor. Press B again to go back to moving.
 
 | Input | Effect |
 |---|---|

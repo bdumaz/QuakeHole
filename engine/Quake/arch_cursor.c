@@ -56,6 +56,58 @@ int ArchCursor_Place (const avec3 hit, const avec3 normal, double yaw_degrees, i
 	return 1;
 }
 
+/* is the strip just inside one edge of the cursor buried in neighbouring solid?
+   Sampled on the cursor's centre line, one unit off the surface on the air side. */
+static int edge_buried (const acursor_t *c, int (*solid) (const avec3 p), int along_v, int high)
+{
+	avec3	p;
+
+	p[c->naxis] = c->plane + c->nsign;
+	if (along_v)
+	{
+		p[c->uaxis] = (c->umin + c->umax) * 0.5;
+		p[c->vaxis] = high ? c->vmax - ARCH_GRID_SNAP * 0.5 : c->vmin + ARCH_GRID_SNAP * 0.5;
+	}
+	else
+	{
+		p[c->vaxis] = (c->vmin + c->vmax) * 0.5;
+		p[c->uaxis] = high ? c->umax - ARCH_GRID_SNAP * 0.5 : c->umin + ARCH_GRID_SNAP * 0.5;
+	}
+	return solid (p);
+}
+
+void ArchCursor_Fit (acursor_t *c, int (*solid) (const avec3 p))
+{
+	int	along_v, dir, steps, i;
+
+	for (along_v = 1; along_v >= 0; along_v--)
+	{
+		int		*lo = along_v ? &c->vmin : &c->umin, *hi = along_v ? &c->vmax : &c->umax;
+		const int	lo0 = *lo, hi0 = *hi;
+		int		low_buried = edge_buried (c, solid, along_v, 0);
+		int		high_buried = edge_buried (c, solid, along_v, 1);
+
+		if (low_buried == high_buried)
+			continue;	/* clear on both sides, or too big to fit */
+		dir = low_buried ? ARCH_GRID_SNAP : -ARCH_GRID_SNAP;
+		steps = (hi0 - lo0) / ARCH_GRID_SNAP;
+		for (i = 0; i < steps; i++)
+		{
+			*lo += dir;
+			*hi += dir;
+			if (edge_buried (c, solid, along_v, low_buried ? 1 : 0))
+			{
+				/* ran into the opposite side: it does not fit, so leave it as aimed */
+				*lo = lo0;
+				*hi = hi0;
+				break;
+			}
+			if (!edge_buried (c, solid, along_v, low_buried ? 0 : 1))
+				break;
+		}
+	}
+}
+
 void ArchCursor_Box (const acursor_t *c, int depth, int mins[3], int maxs[3])
 {
 	/* into the surface is against the normal */

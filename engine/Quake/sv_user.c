@@ -477,6 +477,7 @@ void SV_ReadClientMove (usercmd_t *move)
 		host_client->edict->v.button0 = 0;
 		host_client->edict->v.button2 = 0;
 		host_client->edict->v.impulse = 0;
+		move->forwardmove = move->sidemove = move->upmove = 0;
 	}
 }
 

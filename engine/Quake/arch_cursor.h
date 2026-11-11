@@ -34,6 +34,11 @@ typedef struct
    axis nearest to the facing direction. Returns 0 if the normal is not axis-aligned. */
 int  ArchCursor_Place (const avec3 hit, const avec3 normal, double yaw_degrees, int width, int height, acursor_t *out);
 
+/* Slides the cursor along the surface so that it does not sink into an adjoining
+   floor, wall or ceiling, when it can fit. solid(p) says whether a point is solid.
+   A cursor hanging over open air, or too big to fit, is left where it is. */
+void ArchCursor_Fit (acursor_t *c, int (*solid) (const avec3 p));
+
 /* the box an action covers: depth > 0 goes into the surface (carve), depth < 0 comes out of it (extrude) */
 void ArchCursor_Box (const acursor_t *c, int depth, int mins[3], int maxs[3]);
 

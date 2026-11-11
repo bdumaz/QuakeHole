@@ -9,3 +9,4 @@ game/arch/maps/
 .superpowers/
 history.txt
 Quake paks/
+game/arch/*.sav

@@ -2,6 +2,7 @@
 #include <string.h>
 #include "t.h"
 #include "arch_cursor.h"
+#include "arch_world.h"
 
 static acursor_t place (double hx, double hy, double hz, double nx, double ny, double nz, double yaw, int w, int h, int *ok)
 {
@@ -151,8 +152,58 @@ static void test_format (void)
 	ArchCursor_FormatMetres (8, buf, sizeof(buf));		CHECK (!strcmp (buf, "0.25"));
 }
 
+/* Final review: the cursor must not sink into an adjoining floor, wall or ceiling */
+static void test_fit (void)
+{
+	acursor_t c;
+	int ok;
+
+	ArchWorld_Reset ();	/* room -160..160 */
+
+	/* level aim from the floor: eye height -114, default size. Unfitted it reaches 32 below the floor. */
+	c = place (160 - 1.0 / 32, 0, -114, -1, 0, 0, 0, 160, 160, &ok);
+	CHECK (c.vmin == -192);
+	ArchCursor_Fit (&c, ArchWorld_PointSolid);
+	CHECK (c.vmin == -160 && c.vmax == 0);
+	CHECK (c.umin == -80 && c.umax == 80);
+
+	/* near the ceiling and a side wall at once */
+	c = place (160 - 1.0 / 32, 150, 150, -1, 0, 0, 0, 160, 96, &ok);
+	ArchCursor_Fit (&c, ArchWorld_PointSolid);
+	CHECK (c.vmax == 160 && c.vmin == 64);
+	CHECK (c.umax == 160 && c.umin == 0);
+
+	/* already clear of everything: unchanged */
+	c = place (160 - 1.0 / 32, 8, 8, -1, 0, 0, 0, 160, 160, &ok);
+	ArchCursor_Fit (&c, ArchWorld_PointSolid);
+	CHECK (c.umin == -72 && c.umax == 88 && c.vmin == -72 && c.vmax == 88);
+
+	/* bigger than the wall: it cannot fit, so it stays centred where it was aimed */
+	c = place (160 - 1.0 / 32, 0, 0, -1, 0, 0, 0, 512, 512, &ok);
+	ArchCursor_Fit (&c, ArchWorld_PointSolid);
+	CHECK (c.umin == -256 && c.umax == 256 && c.vmin == -256 && c.vmax == 256);
+
+	/* on the floor next to a wall */
+	c = place (150, 0, -160 + 1.0 / 32, 0, 0, 1, 0, 160, 160, &ok);
+	ArchCursor_Fit (&c, ArchWorld_PointSolid);
+	CHECK (c.vaxis == 0 && c.vmax == 160 && c.vmin == 0);
+
+	/* hanging off a ledge into open air is left alone: only solid neighbours push the cursor */
+	{
+		int mn[3] = {-32, -32, -160}, mx[3] = {32, 32, -96};
+		abrush_t *pillar = ArchBrush_Box (mn, mx);
+		ArchWorld_Add (pillar);
+		ArchBrush_Free (pillar);
+	}
+	c = place (0, 0, -96 + 1.0 / 32, 0, 0, 1, 0, 160, 160, &ok);	/* top of a 64-wide pillar */
+	ArchCursor_Fit (&c, ArchWorld_PointSolid);
+	CHECK (c.umin == -80 && c.umax == 80 && c.vmin == -80 && c.vmax == 80);
+	ArchWorld_Reset ();
+}
+
 void test_cursor (void)
 {
+	test_fit ();
 	test_axes ();
 	test_snap ();
 	test_boxes ();
