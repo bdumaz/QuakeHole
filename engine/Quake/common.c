@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // common.c -- misc functions used in client and server
 
 #include "quakedef.h"
+#include "arch.h" // QUAKEARCH
 #include "q_ctype.h"
 #include <errno.h>
 
@@ -2488,6 +2489,22 @@ void COM_InitFilesystem (void) //johnfitz -- modified based on topaz's tutorial
 	}
 
 	COM_CheckRegistered ();
+
+	// QUAKEARCH: -archdir <path> adds a mod directory that lives outside the
+	// Quake folder. It becomes the top search path and the write directory.
+	if (Arch_Dir ())
+	{
+		char	parent[MAX_OSPATH];
+		char	*leaf;
+
+		q_strlcpy (parent, Arch_Dir (), sizeof(parent));
+		leaf = strrchr (parent, '/');
+		if (!leaf || !leaf[1])
+			Sys_Error ("-archdir needs a full path to a directory");
+		*leaf++ = 0;
+		com_modified = true;
+		COM_AddGameDirectory (parent, leaf);
+	}
 }
 
 

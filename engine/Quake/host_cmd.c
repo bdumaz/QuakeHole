@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "arch.h" // QUAKEARCH
 #include "filenames.h"
 #ifndef _WIN32
 #include <dirent.h>
@@ -940,7 +941,7 @@ static void Host_Changelevel_f (void)
 
 	//johnfitz -- check for client having map before anything else
 	q_snprintf (level, sizeof(level), "maps/%s.bsp", Cmd_Argv(1));
-	if (!COM_FileExists(level, NULL))
+	if (strcmp (level, ARCH_BSPNAME) && !COM_FileExists(level, NULL)) // QUAKEARCH: the arch map has no file
 		Host_Error ("cannot find map %s", level);
 	//johnfitz
 

@@ -208,6 +208,11 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\Quake\arch_brush.c" />
+    <ClCompile Include="..\..\Quake\arch_world.c" />
+    <ClCompile Include="..\..\Quake\arch_map.c" />
+    <ClCompile Include="..\..\Quake\arch_stubbsp.c" />
+    <ClCompile Include="..\..\Quake\arch_game.c" />
     <ClCompile Include="..\..\Quake\bgmusic.c" />
     <ClCompile Include="..\..\Quake\cd_sdl.c" />
     <ClCompile Include="..\..\Quake\cfgfile.c" />

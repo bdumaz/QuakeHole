@@ -7,3 +7,4 @@ game/arch/*.png
 game/arch/maps/
 *.user
 .superpowers/
+history.txt

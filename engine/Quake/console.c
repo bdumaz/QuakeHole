@@ -31,6 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <unistd.h>
 #endif
 #include "quakedef.h"
+#include "arch.h" // QUAKEARCH
 
 int 		con_linewidth;
 
@@ -1299,7 +1300,8 @@ void LOG_Init (quakeparms_t *parms)
 
 	inittime = time (NULL);
 	strftime (session, sizeof(session), "%m/%d/%Y %H:%M:%S", localtime(&inittime));
-	q_snprintf (logfilename, sizeof(logfilename), "%s/qconsole.log", parms->basedir);
+	// QUAKEARCH: the Quake folder may not be writable; log into the mod directory
+	q_snprintf (logfilename, sizeof(logfilename), "%s/qconsole.log", Arch_Dir () ? Arch_Dir () : parms->basedir);
 
 //	unlink (logfilename);
 

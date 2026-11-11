@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // on the same machine.
 
 #include "quakedef.h"
+#include "arch.h" // QUAKEARCH
 
 static qmodel_t*	loadmodel;
 static char	loadname[32];	// for hunk tags
@@ -342,6 +343,13 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 //
 // load the file
 //
+	if (!strcmp (mod->name, ARCH_BSPNAME)) // QUAKEARCH: the arch map has no file; build its stub BSP in memory
+	{
+		int stubsize;
+		buf = ArchStubBSP_Build (&stubsize);
+		mod->path_id = 0;
+	}
+	else
 	buf = COM_LoadStackFile (mod->name, stackbuf, sizeof(stackbuf), & mod->path_id);
 	if (!buf)
 	{

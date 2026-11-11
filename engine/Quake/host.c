@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // host.c -- coordinates spawning and killing of local servers
 
 #include "quakedef.h"
+#include "arch.h" // QUAKEARCH
 #include "bgmusic.h"
 #include <setjmp.h>
 
@@ -849,6 +850,7 @@ void Host_Init (void)
 	Mod_Init ();
 	NET_Init ();
 	SV_Init ();
+	Arch_Init (); // QUAKEARCH
 
 	Con_Printf ("Exe: " __TIME__ " " __DATE__ "\n");
 	Con_Printf ("%4.1f megabyte heap\n", host_parms->memsize/ (1024*1024.0));
