@@ -347,7 +347,7 @@ int ArchWorld_Carve (const abrush_t *shape)
 		abrush_t **out;
 		int count;
 
-		if (!ArchBrush_Intersects (W->brushes[ids[i]], shape))
+		if (W->brushes[ids[i]]->locked || !ArchBrush_Intersects (W->brushes[ids[i]], shape))
 			continue;
 		count = ArchBrush_Subtract (W->brushes[ids[i]], shape, &out);
 		for (k = 0; k < count; k++)

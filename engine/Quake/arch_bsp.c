@@ -27,7 +27,7 @@ typedef struct
 	int			count, dropped;
 } convert_t;
 
-static void emit_region (convert_t *c, int depth)
+static void emit_region (convert_t *c, int depth, int sky)
 {
 	abrush_t	*b;
 
@@ -38,6 +38,7 @@ static void emit_region (convert_t *c, int depth)
 		c->dropped++;	/* too thin for the brush code, or outside what it can represent */
 		return;
 	}
+	b->locked = sky;	/* sky is solid for collision but is never dug */
 	c->emit (b);
 	c->count++;
 }
@@ -51,7 +52,7 @@ static void walk (convert_t *c, int num, int depth)
 	if (num < 0)
 	{
 		if (num == ARCH_BSP_SOLID || num == ARCH_BSP_SKY)
-			emit_region (c, depth);
+			emit_region (c, depth, num == ARCH_BSP_SKY);
 		return;
 	}
 	if (depth >= MAX_DEPTH)

@@ -19,7 +19,9 @@ enum { ARCH_SLOT_GROUND, ARCH_SLOT_WALL, ARCH_SLOT_CEILING, ARCH_NUM_SLOTS };
 
 /* n.x = d on the plane; n points out of the brush.
    n = normalize((p[0]-p[1]) x (p[2]-p[1])), the .map convention. */
-typedef struct { int p[3][3]; avec3 n; double d; } aplane_t;
+/* tag is free for the caller: a face made by cutting with a tagged plane carries the
+   tag, which is how the inside of a dug hole knows what it should look like */
+typedef struct { int p[3][3]; avec3 n; double d; int tag; } aplane_t;
 
 /* verts are clockwise when seen from outside the brush */
 typedef struct { aplane_t plane; int slot; int nverts; avec3 *verts; } aface_t;
@@ -27,7 +29,8 @@ typedef struct { aplane_t plane; int slot; int nverts; avec3 *verts; } aface_t;
 /* an extra plane used only when sweeping a box against the brush; see ArchBrush_BuildBevels */
 typedef struct { avec3 n; double d; } abevel_t;
 
-typedef struct { int nfaces; aface_t *faces; avec3 mins, maxs; int nbevels; abevel_t *bevels; } abrush_t;
+/* a locked brush is never carved (sky) */
+typedef struct { int nfaces; aface_t *faces; avec3 mins, maxs; int nbevels; abevel_t *bevels; int locked; } abrush_t;
 
 int       ArchPlane_FromPoints (const int a[3], const int b[3], const int c[3], aplane_t *out); /* 0 if collinear */
 void      ArchPlane_Flip (const aplane_t *in, aplane_t *out);

@@ -51,6 +51,7 @@ int ArchPlane_FromPoints (const int a[3], const int b[3], const int c[3], aplane
 			out->n[i] = 0;	/* avoid -0 and noise on axial planes */
 	}
 	out->d = out->n[0] * b[0] + out->n[1] * b[1] + out->n[2] * b[2];
+	out->tag = 0;
 	return 1;
 }
 
@@ -67,6 +68,7 @@ void ArchPlane_Flip (const aplane_t *in, aplane_t *out)
 		out->n[i] = t.n[i] == 0 ? 0 : -t.n[i];
 	}
 	out->d = t.d == 0 ? 0 : -t.d;
+	out->tag = t.tag;
 }
 
 /* plane through a, b, c whose normal points away from the point "inside" */
