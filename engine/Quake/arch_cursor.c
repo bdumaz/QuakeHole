@@ -39,12 +39,14 @@ int ArchCursor_Place (const avec3 hit, const avec3 normal, double yaw_degrees, i
 		double yaw = yaw_degrees * PI / 180.0;
 		out->vaxis = fabs (cos (yaw)) >= fabs (sin (yaw)) ? 0 : 1;
 		out->uaxis = 1 - out->vaxis;
+		out->vdir = (out->vaxis == 0 ? cos (yaw) : sin (yaw)) >= 0 ? 1 : -1;
 	}
 	else
 	{
 		/* wall: width horizontal, height vertical */
 		out->uaxis = 1 - axis;
 		out->vaxis = 2;
+		out->vdir = 1;
 	}
 
 	cu = round_to (hit[out->uaxis], ARCH_GRID_SNAP);
@@ -106,6 +108,103 @@ void ArchCursor_Fit (acursor_t *c, int (*solid) (const avec3 p))
 				break;
 		}
 	}
+}
+
+/* ----------------------------------------------------------------- arch */
+
+int ArchCursor_ArchProfile (const acursor_t *c, int pts[ARCH_PROFILE_MAX][3])
+{
+	double	half = (c->umax - c->umin) * 0.5, centre = (c->umin + c->umax) * 0.5;
+	double	height = c->vmax - c->vmin;
+	double	rise = height < half ? height : half;	/* height of the curved part */
+	double	straight = height - rise;		/* height of the straight sides */
+	int	uv[ARCH_PROFILE_MAX][2], n = 0, i, k;
+
+	/* local coordinates: u across, t up from the base */
+	uv[n][0] = c->umin; uv[n][1] = 0; n++;
+	uv[n][0] = c->umax; uv[n][1] = 0; n++;
+	for (i = 0; i <= ARCH_ARCH_SEGMENTS; i++)
+	{
+		double	a = PI * i / ARCH_ARCH_SEGMENTS;
+		int	u = (int) floor (centre + half * cos (a) + 0.5);
+		int	t = (int) floor (straight + rise * sin (a) + 0.5);
+
+		/* rounding and zero-height sides can repeat a point */
+		for (k = 0; k < n; k++)
+			if (uv[k][0] == u && uv[k][1] == t)
+				break;
+		if (k < n)
+			continue;
+		uv[n][0] = u; uv[n][1] = t; n++;
+	}
+	for (i = 0; i < n; i++)
+	{
+		pts[i][c->naxis] = c->plane;
+		pts[i][c->uaxis] = uv[i][0];
+		pts[i][c->vaxis] = c->vdir > 0 ? c->vmin + uv[i][1] : c->vmax - uv[i][1];
+	}
+	return n;
+}
+
+abrush_t *ArchCursor_ArchBrush (const acursor_t *c, int depth)
+{
+	int	pts[ARCH_PROFILE_MAX][3], extrude[3] = {0, 0, 0}, n;
+
+	if (!depth)
+		return NULL;
+	n = ArchCursor_ArchProfile (c, pts);
+	extrude[c->naxis] = -c->nsign * depth;	/* into the surface is against the normal */
+	return ArchBrush_Prism (pts, n, extrude);
+}
+
+/* ----------------------------------------------------------------- snap */
+
+/* is the grid square whose low corner is (u, v) flat surface: solid behind, empty in front? */
+static int square_is_surface (const acursor_t *c, int (*solid) (const avec3 p), int u, int v)
+{
+	avec3	p;
+
+	p[c->uaxis] = u + ARCH_GRID_SNAP * 0.5;
+	p[c->vaxis] = v + ARCH_GRID_SNAP * 0.5;
+	p[c->naxis] = c->plane - c->nsign;
+	if (!solid (p))
+		return 0;
+	p[c->naxis] = c->plane + c->nsign;
+	return !solid (p);
+}
+
+/* a strip of squares: along u from a to b at fixed v, or along v at fixed u */
+static int strip_is_surface (const acursor_t *c, int (*solid) (const avec3 p), int along_u, int fixed, int a, int b)
+{
+	int	i;
+
+	for (i = a; i < b; i += ARCH_GRID_SNAP)
+		if (!square_is_surface (c, solid, along_u ? i : fixed, along_u ? fixed : i))
+			return 0;
+	return 1;
+}
+
+int ArchCursor_Snap (acursor_t *c, const avec3 hit, int (*solid) (const avec3 p))
+{
+	int	umin = ARCH_GRID_SNAP * (int) floor (hit[c->uaxis] / ARCH_GRID_SNAP);
+	int	vmin = ARCH_GRID_SNAP * (int) floor (hit[c->vaxis] / ARCH_GRID_SNAP);
+	int	umax = umin + ARCH_GRID_SNAP, vmax = vmin + ARCH_GRID_SNAP;
+	int	grew = 1;
+
+	if (!square_is_surface (c, solid, umin, vmin))
+		return 0;
+	/* grow each side in turn; the world is bounded, so this ends */
+	while (grew)
+	{
+		grew = 0;
+		if (strip_is_surface (c, solid, 0, umin - ARCH_GRID_SNAP, vmin, vmax)) { umin -= ARCH_GRID_SNAP; grew = 1; }
+		if (strip_is_surface (c, solid, 0, umax, vmin, vmax))			 { umax += ARCH_GRID_SNAP; grew = 1; }
+		if (strip_is_surface (c, solid, 1, vmin - ARCH_GRID_SNAP, umin, umax)) { vmin -= ARCH_GRID_SNAP; grew = 1; }
+		if (strip_is_surface (c, solid, 1, vmax, umin, umax))			 { vmax += ARCH_GRID_SNAP; grew = 1; }
+	}
+	c->umin = umin; c->umax = umax;
+	c->vmin = vmin; c->vmax = vmax;
+	return 1;
 }
 
 void ArchCursor_Box (const acursor_t *c, int depth, int mins[3], int maxs[3])

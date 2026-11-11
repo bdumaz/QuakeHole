@@ -40,11 +40,9 @@ aaction_t ArchGesture_PrimaryUp (agesture_t *g, int *depth)
 	{
 		if (g->dragging)
 		{
-			if (g->depth != 0)
-			{
-				act = ARCH_ACT_DRAG;
-				*depth = g->depth;
-			}
+			/* depth may be 0: the caller decides what a zero-depth drag means */
+			act = ARCH_ACT_DRAG;
+			*depth = g->depth;
 		}
 		else if (!g->scrolled)
 		{

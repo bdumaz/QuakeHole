@@ -8,6 +8,7 @@ Free Software Foundation; either version 2 of the License, or (at your
 option) any later version.
 */
 #include "arch_map.h"
+#include "arch_pads.h"
 
 int ArchMap_Write (FILE *f, const char *const texnames[ARCH_NUM_SLOTS], const int spawn[3])
 {
@@ -34,6 +35,8 @@ int ArchMap_Write (FILE *f, const char *const texnames[ARCH_NUM_SLOTS], const in
 	}
 	fprintf (f, "}\n{\n\"classname\" \"info_player_start\"\n\"origin\" \"%d %d %d\"\n}\n",
 		spawn[0], spawn[1], spawn[2]);
+
+	ArchPads_Write (f);
 
 	if (fflush (f) != 0 || ferror (f))
 		return 0;

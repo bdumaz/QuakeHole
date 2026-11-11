@@ -27,7 +27,11 @@ typedef struct
 	int	plane;		/* the surface's coordinate on naxis */
 	int	uaxis, vaxis;	/* axis the width runs along, axis the height runs along */
 	int	umin, umax, vmin, vmax;
+	int	vdir;		/* +1 or -1: the direction along vaxis that is "up" for an arch */
 } acursor_t;
+
+#define ARCH_ARCH_SEGMENTS	8
+#define ARCH_PROFILE_MAX	12	/* two base corners plus the curve's points */
 
 /* Places a width x height cursor on the surface through hit, centred on hit and
    snapped to the grid. On floors and ceilings the height runs along the world
@@ -41,6 +45,21 @@ void ArchCursor_Fit (acursor_t *c, int (*solid) (const avec3 p));
 
 /* the box an action covers: depth > 0 goes into the surface (carve), depth < 0 comes out of it (extrude) */
 void ArchCursor_Box (const acursor_t *c, int depth, int mins[3], int maxs[3]);
+
+/* The arch outline fitted inside the cursor: a rectangle topped by a semicircle,
+   or a half-ellipse when the cursor is less than half as high as it is wide.
+   Points are whole units, on the surface, in order around the outline.
+   Returns the number of points. */
+int  ArchCursor_ArchProfile (const acursor_t *c, int pts[ARCH_PROFILE_MAX][3]);
+
+/* the arch-shaped volume for an action, like ArchCursor_Box. NULL if depth is 0 or the shape is degenerate. */
+abrush_t *ArchCursor_ArchBrush (const acursor_t *c, int depth);
+
+/* Replaces the cursor rectangle with one grown outward on the 8-unit grid from
+   the square under hit, for as long as each new strip is flat surface (solid
+   behind, empty in front). Returns 0 and leaves the cursor alone if the square
+   under hit is not flat surface. */
+int  ArchCursor_Snap (acursor_t *c, const avec3 hit, int (*solid) (const avec3 p));
 
 /* the rectangle's corners in order around it, moved lift units off the surface toward the air */
 void ArchCursor_Corners (const acursor_t *c, double lift, avec3 corners[4]);

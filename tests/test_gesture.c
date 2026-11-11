@@ -108,7 +108,9 @@ void test_gesture (void)
 	CHECK (g.depth == -16);
 	ArchGesture_Motion (&g, 16, 1.0);
 	CHECK (g.depth == 0);
-	CHECK (ArchGesture_PrimaryUp (&g, &depth) == ARCH_ACT_NONE);
+	/* still reported as a drag, at depth 0: extrusions ignore it, a pad is placed at default strength */
+	depth = 99;
+	CHECK (ArchGesture_PrimaryUp (&g, &depth) == ARCH_ACT_DRAG && depth == 0);
 
 	/* a scroll before the threshold prevents a drag for the rest of the gesture */
 	ArchGesture_PrimaryDown (&g, 1);
