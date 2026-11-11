@@ -87,12 +87,16 @@ void Arch_ServerSpawn (void)
 {
 	campaign_ready = false;
 	ArchGame_NewMap ();	/* nothing noted in the last map may be dug in this one */
+	ArchBuild_MapChanged ();
 	if (!q_strcasecmp (sv.modelname, ARCH_BSPNAME))
 	{
-		ArchWorld_Select (ARCH_WORLD_SANDBOX);	/* the sandbox level is kept as it was left */
+		ArchWorld_Select (ARCH_WORLD_SANDBOX);	/* the sandbox level and its pads are kept as they were left */
+		ArchPads_Select (ARCH_WORLD_SANDBOX);
 		return;
 	}
 	ArchWorld_Select (ARCH_WORLD_CAMPAIGN);
+	ArchPads_Select (ARCH_WORLD_CAMPAIGN);
+	ArchPads_Clear ();
 	if (arch_campaign.value)
 		convert_campaign_map ();
 }
@@ -470,6 +474,56 @@ static void run_dig_events (void)
 	}
 }
 
+/* A build-mode edit in a campaign map. Carving goes through the same steps as a
+   dig; adding only needs the new solid drawn. at is where the cursor met the
+   wall, which decides what the new faces look like. Returns false if the brush
+   limit refused the edit. The shape still belongs to the caller. */
+qboolean ArchGame_CampaignEdit (void *shape_ptr, qboolean carve, vec3_t at)
+{
+	abrush_t	*shape = (abrush_t *) shape_ptr;
+	vec3_t		lo, hi;
+	int		look = ArchSurf_LookFor (at), revision = ArchWorld_Revision (), i, k, ok;
+
+	if (cl.worldmodel != sv.worldmodel)
+		return true;
+	for (k = 0; k < 3; k++)
+	{
+		lo[k] = (float) shape->mins[k];
+		hi[k] = (float) shape->maxs[k];
+	}
+	for (i = 0; i < shape->nfaces; i++)
+		shape->faces[i].plane.tag = look;
+	if (carve)
+	{
+		if (ArchSurf_BrushCutsSky (shape))
+		{
+			Con_Printf ("arch: can't cut into the sky\n");
+			return true;
+		}
+		ok = ArchWorld_Carve (shape);
+		if (ok && ArchWorld_Revision () != revision)
+		{
+			ArchSurf_DigBrush (shape);
+			ArchSurf_NoteDig (lo, hi, look);
+		}
+	}
+	else
+	{
+		ok = ArchWorld_Add (shape);
+		if (ok && ArchWorld_Revision () != revision)
+		{
+			ArchSurf_NoteDig (lo, hi, look);	/* so the new block is drawn */
+			ArchSurf_NoteBuilt ();
+		}
+	}
+	if (ArchWorld_Revision () != revision)
+	{
+		ArchSurf_Commit ();
+		drop_unsupported_entities ();
+	}
+	return ok != 0;
+}
+
 /* jump pads: launch the player away from any pad they are touching */
 static void touch_pads (edict_t *ent)
 {
@@ -500,7 +554,10 @@ void ArchGame_PlayerFrame (edict_t *ent)
 	run_dig_events ();
 	if (!Arch_Active ())
 	{
-		/* a campaign map: digging only, none of the sandbox's rules */
+		/* a campaign map: digging and building, none of the sandbox's free weapons or damage rules */
+		ArchBuild_PlayerFrame (ent);
+		if (!ArchBuild_Active ())
+			touch_pads (ent);
 		/* wait until the player has actually been placed in the map */
 		if (rescue_pending && cl.worldmodel == sv.worldmodel && svs.clients[0].spawned && ent->v.health > 0)
 		{

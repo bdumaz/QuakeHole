@@ -24,6 +24,7 @@ const char	*Arch_Dir (void);	/* value of -archdir, forward slashes, no trailing 
 void		Arch_TextureNames (const char *names[3]);	/* indexed by ARCH_SLOT_* */
 void		ArchGame_PlayerFrame (edict_t *ent);	/* run for each player just before its QuakeC post-think */
 void		ArchGame_NewMap (void);			/* call when the arch map starts */
+qboolean	ArchGame_CampaignEdit (void *shape, qboolean carve, vec3_t at);	/* shape is an abrush_t */
 /* everything the game code writes to a network message passes through these, so that
    explosions and lightning beams can be noticed (weapon digging) */
 void		ArchGame_WroteByte (int dest, int value);
@@ -33,6 +34,7 @@ void		ArchGame_Particle (const float *org, int count);	/* the game code asked fo
 
 /* arch_build.c */
 void		ArchBuild_Init (void);
+void		ArchBuild_MapChanged (void);			/* a map is starting: leave build mode */
 void		ArchBuild_WorldChanged (void);			/* call after any edit made outside build mode */
 void		ArchBuild_NewMap (void);			/* restores default keys that have none */
 qboolean	ArchBuild_Active (void);			/* true while in build mode */
@@ -44,6 +46,10 @@ void		ArchBuild_DrawHUD (void);
 
 /* arch_surf.c: the drawing side of digging in campaign maps */
 qboolean	ArchSurf_Dug (void);				/* the current map has been dug since it started */
+qboolean	ArchSurf_Built (void);				/* solid has been added to it in build mode */
+void		ArchSurf_NoteBuilt (void);
+qboolean	ArchSurf_BrushCutsSky (const void *shape);	/* shape is an abrush_t */
+void		ArchSurf_DigBrush (const void *shape);
 void		ArchSurf_NewMap (void);				/* a map is starting: forget all cuts */
 int		ArchSurf_LookFor (vec3_t pos);			/* texture and brightness for a dig at this point */
 void		ArchSurf_NoteDig (const float mins[3], const float maxs[3], int look);

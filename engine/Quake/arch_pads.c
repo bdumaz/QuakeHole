@@ -10,8 +10,18 @@ option) any later version.
 #include <string.h>
 #include "arch_pads.h"
 
-static apad_t	pads[ARCH_MAX_PADS];
-static int	num_pads;
+/* the sandbox and the campaign map each have their own pads */
+static apad_t	pad_sets[2][ARCH_MAX_PADS];
+static int	pad_counts[2];
+static int	pad_set;
+
+#define pads		(pad_sets[pad_set])
+#define num_pads	(pad_counts[pad_set])
+
+void ArchPads_Select (int which)
+{
+	pad_set = which ? 1 : 0;
+}
 
 void ArchPads_Clear (void)
 {

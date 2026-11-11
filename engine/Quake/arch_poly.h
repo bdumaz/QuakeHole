@@ -30,4 +30,11 @@ typedef struct { int n; avec3 v[ARCH_POLY_MAX_VERTS]; } apoly_t;
 int ArchPoly_SubtractBox (const apoly_t *poly, const avec3 normal, const int mins[3], const int maxs[3],
 			  apoly_t pieces[ARCH_POLY_MAX_PIECES]);
 
+#define ARCH_POLY_MAX_CUT_PIECES	32
+
+/* The same for any convex brush (an arch, for build mode). pieces must hold
+   ARCH_POLY_MAX_CUT_PIECES; a brush with more faces than that is treated as untouched. */
+int ArchPoly_SubtractBrush (const apoly_t *poly, const avec3 normal, const abrush_t *brush,
+			    apoly_t pieces[ARCH_POLY_MAX_CUT_PIECES]);
+
 #endif /* ARCH_POLY_H */

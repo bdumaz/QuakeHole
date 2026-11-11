@@ -563,6 +563,8 @@ int SV_PointContents (vec3_t p)
 	cont = SV_HullPointContents (&sv.worldmodel->hulls[0], 0, p);
 	if (cont == CONTENTS_SOLID && ArchSurf_Dug () && Arch_BrushWorld () && ArchCollide_PointContents (p) != CONTENTS_SOLID)
 		cont = CONTENTS_EMPTY; // QUAKEARCH: dug out
+	else if (cont == CONTENTS_EMPTY && ArchSurf_Built () && Arch_BrushWorld () && ArchCollide_PointContents (p) == CONTENTS_SOLID)
+		cont = CONTENTS_SOLID; // QUAKEARCH: built in build mode
 	if (cont <= CONTENTS_CURRENT_0 && cont >= CONTENTS_CURRENT_DOWN)
 		cont = CONTENTS_WATER;
 	return cont;

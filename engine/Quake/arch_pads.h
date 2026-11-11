@@ -29,6 +29,7 @@ typedef struct
 	int	speed;
 } apad_t;
 
+void ArchPads_Select (int which);	/* 0 the sandbox's pads, 1 the campaign map's; the calls below use the selected list */
 void ArchPads_Clear (void);
 int  ArchPads_Count (void);
 const apad_t *ArchPads_Get (int i);	/* NULL when out of range */

@@ -32,6 +32,11 @@ int ArchCursor_Place (const avec3 hit, const avec3 normal, double yaw_degrees, i
 	out->naxis = axis;
 	out->nsign = normal[axis] > 0 ? 1 : -1;
 	out->plane = round_to (hit[axis], 1);
+	/* The hit stops 1/32 short of the surface. Further than that from a whole
+	   unit means the surface itself is not on one (some campaign walls are not),
+	   and a box built from a rounded plane would not line up with it. */
+	if (fabs (hit[axis] - out->plane) > 0.1)
+		return 0;
 
 	if (axis == 2)
 	{

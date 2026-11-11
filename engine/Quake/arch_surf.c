@@ -40,10 +40,21 @@ static int	frags_count;		/* size of that array */
 static int	frag_verts;		/* total vertices in all fragments */
 static qboolean	vbo_stale;
 static qboolean	map_dug;
+static qboolean	map_built;	/* solid has been added to the map in build mode */
 
 qboolean ArchSurf_Dug (void)
 {
 	return map_dug;
+}
+
+qboolean ArchSurf_Built (void)
+{
+	return map_built;
+}
+
+void ArchSurf_NoteBuilt (void)
+{
+	map_built = true;
 }
 
 static void free_fragment (afrag_t *f)
@@ -114,6 +125,18 @@ static afrag_t *make_fragment (msurface_t *parent, const apoly_t *p)
 	return f;
 }
 
+/* Cuts are normally by a grid box. Build mode can also cut with any convex
+   brush (an arch); while one is set, it is used and the box only bounds it. */
+static const abrush_t	*cut_shape;
+static apoly_t		cut_pieces[ARCH_POLY_MAX_CUT_PIECES];
+
+static int cut_surface (const apoly_t *poly, const avec3 normal, const int mins[3], const int maxs[3])
+{
+	if (cut_shape)
+		return ArchPoly_SubtractBrush (poly, normal, cut_shape, cut_pieces);
+	return ArchPoly_SubtractBox (poly, normal, mins, maxs, cut_pieces);
+}
+
 static void poly_from_gl (const glpoly_t *gp, apoly_t *out)
 {
 	int	i, k;
@@ -130,7 +153,7 @@ static void poly_from_gl (const glpoly_t *gp, apoly_t *out)
 qboolean ArchSurf_BoxCutsSky (const int mins[3], const int maxs[3])
 {
 	qmodel_t	*world = cl.worldmodel;
-	apoly_t		poly, pieces[ARCH_POLY_MAX_PIECES];
+	apoly_t		poly;
 	avec3		normal;
 	int		i, k;
 
@@ -154,7 +177,7 @@ qboolean ArchSurf_BoxCutsSky (const int mins[3], const int maxs[3])
 			if (gp->numverts > ARCH_POLY_MAX_VERTS - 8)
 				return true;	/* cannot tell: leave it alone */
 			poly_from_gl (gp, &poly);
-			if (ArchPoly_SubtractBox (&poly, normal, mins, maxs, pieces) != ARCH_POLY_UNTOUCHED)
+			if (cut_surface (&poly, normal, mins, maxs) != ARCH_POLY_UNTOUCHED)
 				return true;
 		}
 	}
@@ -165,7 +188,7 @@ qboolean ArchSurf_BoxCutsSky (const int mins[3], const int maxs[3])
 void ArchSurf_Dig (const int mins[3], const int maxs[3])
 {
 	qmodel_t	*world = cl.worldmodel;
-	apoly_t		poly, pieces[ARCH_POLY_MAX_PIECES];
+	apoly_t		poly;
 	avec3		normal;
 	int		i, k, n, p;
 
@@ -190,13 +213,13 @@ void ArchSurf_Dig (const int mins[3], const int maxs[3])
 		if (!(surf->flags & SURF_ARCHDUG))
 		{
 			poly_from_gl (surf->polys, &poly);
-			n = ArchPoly_SubtractBox (&poly, normal, mins, maxs, pieces);
+			n = cut_surface (&poly, normal, mins, maxs);
 			if (n == ARCH_POLY_UNTOUCHED)
 				continue;
 			surf->flags |= SURF_ARCHDUG;
 			for (p = 0; p < n; p++)
 			{
-				fresh = make_fragment (surf, &pieces[p]);
+				fresh = make_fragment (surf, &cut_pieces[p]);
 				fresh->next = frags[i];
 				frags[i] = fresh;
 			}
@@ -213,7 +236,7 @@ void ArchSurf_Dig (const int mins[3], const int maxs[3])
 				continue;
 			}
 			poly_from_gl (f->surf.polys, &poly);
-			n = ArchPoly_SubtractBox (&poly, normal, mins, maxs, pieces);
+			n = cut_surface (&poly, normal, mins, maxs);
 			if (n == ARCH_POLY_UNTOUCHED)
 			{
 				link = &f->next;
@@ -224,7 +247,7 @@ void ArchSurf_Dig (const int mins[3], const int maxs[3])
 			for (p = 0; p < n; p++)
 			{
 				/* new pieces go in front of the link, so they are not cut again by this box */
-				fresh = make_fragment (surf, &pieces[p]);
+				fresh = make_fragment (surf, &cut_pieces[p]);
 				fresh->next = *link;
 				*link = fresh;
 				link = &fresh->next;
@@ -233,6 +256,42 @@ void ArchSurf_Dig (const int mins[3], const int maxs[3])
 		}
 	}
 	map_dug = true;
+}
+
+static void shape_bounds (const abrush_t *shape, int mins[3], int maxs[3])
+{
+	int	k;
+
+	for (k = 0; k < 3; k++)
+	{
+		mins[k] = (int) floor (shape->mins[k]);
+		maxs[k] = (int) ceil (shape->maxs[k]);
+	}
+}
+
+/* the same two questions for any convex shape */
+qboolean ArchSurf_BrushCutsSky (const void *shape_ptr)
+{
+	const abrush_t	*shape = (const abrush_t *) shape_ptr;
+	int		mins[3], maxs[3];
+	qboolean	cuts;
+
+	shape_bounds (shape, mins, maxs);
+	cut_shape = shape;
+	cuts = ArchSurf_BoxCutsSky (mins, maxs);
+	cut_shape = NULL;
+	return cuts;
+}
+
+void ArchSurf_DigBrush (const void *shape_ptr)
+{
+	const abrush_t	*shape = (const abrush_t *) shape_ptr;
+	int	mins[3], maxs[3];
+
+	shape_bounds (shape, mins, maxs);
+	cut_shape = shape;
+	ArchSurf_Dig (mins, maxs);
+	cut_shape = NULL;
 }
 
 /* vertex buffer: the engine keeps all map vertices in one buffer; fragments are appended to it */
@@ -566,7 +625,7 @@ void ArchSurf_DrawHoles (void)
 {
 	int	i;
 
-	if (!map_dug || !num_looks)
+	if (!num_digs || !num_looks)
 		return;
 	if (mesh_revision != ArchWorld_Revision ())
 		rebuild_meshes ();
@@ -627,6 +686,7 @@ void ArchSurf_NewMap (void)
 	frag_verts = 0;
 	vbo_stale = false;
 	map_dug = false;
+	map_built = false;
 	num_looks = 0;
 	num_digs = 0;
 	mesh_revision = -1;

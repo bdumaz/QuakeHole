@@ -45,7 +45,7 @@ static edict_t *build_player (void)
 
 qboolean ArchBuild_Active (void)
 {
-	if (build_active && !Arch_Active ())
+	if (build_active && !Arch_BrushWorld ())
 	{
 		/* the map changed under us: build mode only exists in the arch map */
 		build_active = false;
@@ -82,9 +82,9 @@ static void ArchBuild_Toggle_f (void)
 {
 	edict_t	*ent = build_player ();
 
-	if (!Arch_Active () || !ent)
+	if (!Arch_BrushWorld () || !ent)
 	{
-		Con_Printf ("arch: not in the arch map\n");
+		Con_Printf ("arch: build mode needs the arch map or a converted campaign map\n");
 		return;
 	}
 	if (build_active)
@@ -110,6 +110,18 @@ static void ArchBuild_Toggle_f (void)
 	cursor_valid = false;
 	cursor_pinned = false;
 	build_active = true;
+}
+
+/* the server is starting a map: whatever mode we were in belonged to the last one */
+void ArchBuild_MapChanged (void)
+{
+	build_active = false;
+	if (gesture_ready)
+		ArchGesture_Cancel (&gesture);
+	gesture.secondary = 0;
+	wheel.open = 0;
+	cursor_pinned = false;
+	cursor_valid = false;
 }
 
 /* Called for the player every server frame. Anything else that changes the
@@ -155,7 +167,15 @@ static void extrude (abrush_t *shape, int depth)
 		ArchBrush_Free (shape);
 		return;
 	}
-	ok = depth > 0 ? ArchWorld_Carve (shape) : ArchWorld_Add (shape);
+	if (!Arch_Active ())
+	{
+		/* a campaign map: the map's own surfaces and the hole drawing have to follow */
+		vec3_t at;
+		at[0] = (float) cursor_hit[0]; at[1] = (float) cursor_hit[1]; at[2] = (float) cursor_hit[2];
+		ok = ArchGame_CampaignEdit (shape, depth > 0, at);
+	}
+	else
+		ok = depth > 0 ? ArchWorld_Carve (shape) : ArchWorld_Add (shape);
 	ArchBrush_Free (shape);
 	if (!ok)
 	{
@@ -592,7 +612,7 @@ void ArchBuild_Draw (void)
 	qboolean		building = ArchBuild_Active ();
 	int			n;
 
-	if (!Arch_Active ())
+	if (!Arch_BrushWorld ())
 		return;
 	if (building)
 		update_cursor ();

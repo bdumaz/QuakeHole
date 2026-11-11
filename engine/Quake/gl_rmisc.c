@@ -406,12 +406,9 @@ void R_NewMap (void)
 
 	load_subdivide_size = gl_subdivide_size.value; //johnfitz -- is this the right place to set this?
 
+	ArchBuild_NewMap (); // QUAKEARCH: default keys, in any map
 	if (Arch_Active ()) // QUAKEARCH
-	{
 		ArchRender_NewMap ();
-		ArchBuild_NewMap ();
-		ArchGame_NewMap ();
-	}
 }
 
 /*

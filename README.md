@@ -81,10 +81,21 @@ A block that would bury you is refused.
 
 ## Digging with weapons
 
-In move mode, two weapons reshape the level:
+In move mode every weapon reshapes the level. The size of the hole follows the damage the hit does in the game, with a rocket as the reference:
 
-- **Rockets and grenades** blast a stepped crater about 4 m across out of whatever they hit.
-- **The lightning gun** destroys the half-metre cube it is touching almost at once (after a tenth of a second on the same cube), with a burst of debris. Keep holding to bore deeper, about ten cubes a second. Sparks at the beam's end show it is working.
+| Weapon | What one hit removes |
+|---|---|
+| Rocket, grenade | A stepped crater about 4 m across |
+| Exploding barrel | A slightly larger crater (it does a third more damage than a rocket) |
+| Super nailgun | A pocket a little over 2 m across, per nail |
+| Nailgun | A pocket a little under 2 m across, per nail |
+| Shotgun, super shotgun | A dent a little over 1 m across for each pellet that reaches a wall |
+| Axe | The same dent as one pellet, where it strikes a wall |
+| Lightning gun | A block 1.5 m across, bored along the beam |
+
+Those are the widths of the sphere each hit clears. Most of it is in front of the wall, so the bite out of a flat wall is smaller: about 6 half-metre cubes for a shotgun blast against about 120 for a rocket.
+
+The lightning gun digs for as long as you hold it on a surface, at about 6 m of depth a second, with a burst of debris. Monsters' nails, bolts and grenades dig too.
 
 Everything dug is made of half-metre cubes on the world grid, so the build cursor works on it and it exports exactly. Jump pads whose surface is dug away disappear. There is no undo; set `arch_dig 0` to shoot without changing the level.
 
@@ -97,14 +108,16 @@ The campaign and any other map still play in this engine: choose New Game from t
 When a campaign map loads, its solid space is rebuilt as the same kind of brushes the sandbox uses, and collision with the world runs on those. That lets weapons dig into campaign maps as they do in the sandbox:
 
 - A rocket or grenade blasts a stepped crater out of a wall, floor or ceiling. The wall around it keeps its texture and lighting, and the inside of the hole takes the texture of the wall it was blasted from.
-- The lightning gun bores half-metre cubes, about ten a second.
+- Every other weapon digs too, as described above, and so do exploding barrels.
 - Dig through to another room and you can see, shoot and walk through the hole. So can the monsters.
 - Items and monsters standing on a floor that is dug away fall.
 - Doors, lifts, buttons, liquids and the sky cannot be dug. Restarting the map restores it; holes are not kept in savegames.
 
 After the first dig in a map the engine stops skipping rooms it believes are out of sight, since a hole may have joined them. Large maps draw somewhat slower from then until the map restarts.
 
-Building, jump pads, the sandbox's free weapons and its damage rules stay in the sandbox. In the campaign you dig with the weapons and ammunition you find.
+Build mode works in campaign maps as well: press B, and the cursor, both extrude actions, jump pads, the action wheel and snap behave as in the sandbox. What you add is textured from the nearest wall and lit evenly; it does not pick up the map's baked shadows. Two limits apply: the cursor only lands on surfaces that face straight along an axis and sit on whole units, so angled walls and a few odd ones will not take it; and monsters do not wait while you build.
+
+The sandbox's free weapons and its damage rules stay in the sandbox. In the campaign you dig with the weapons and ammunition you find.
 
 Three differences from original Quake are known. A few invisible barriers that mappers placed are gone, so the odd spot is reachable that was not. Movers collide with their real size where the original uses three fixed sizes, which can matter in very tight spaces. And on two maps (E1M5 and E4M7) rockets and nails explode against the sky where the original removes them silently. Set `arch_campaign 0` and restart the map to get the original collision back.
 
@@ -133,8 +146,10 @@ Exported `.map` files use the standard Quake format and open in editors such as 
 | `arch_falldamage` | 0 | Set to 1 for fall damage (also needs `arch_selfdamage 1`) |
 | `arch_infiniteammo` | 1 | Set to 0 for limited ammunition |
 | `arch_dig` | 1 | Set to 0 to stop weapons digging into the level |
-| `arch_dig_radius` | 64 | Crater radius for rockets and grenades, in units (32 units = 1 m) |
-| `arch_dig_time` | 0.1 | Seconds the lightning gun must stay on one cube to destroy it (0.1 to 10) |
+| `arch_dig_radius` | 64 | Crater radius for a rocket, in units (32 units = 1 m). Every other weapon scales from it |
+| `arch_dig_time` | 0.05 | Seconds per lightning gun bite. The gun reports ten times a second, so values below 0.1 mean several bites per report (0.05 is two); 0.1 or more makes it wait on one spot that long |
+| `arch_dig_beam` | 3 | Width of the lightning gun's bite, in half-metre cubes (1 to 9) |
+| `arch_dig_weapons` | 1 | Scales what bullets, nails and bolts dig. 0 turns them off; explosions and the lightning gun are not affected |
 | `arch_campaign` | 1 | Set to 0 to run campaign maps on their original collision. Takes effect when a map starts |
 | `arch_drag_speed` | 1 | Units of depth per mouse count while dragging in build mode. Raise it if drags feel slow |
 | `arch_tex_ground`, `arch_tex_wall`, `arch_tex_ceiling` | `sfloor4_5`, `wbrick1_5`, `ceiling1_3` | Texture names, taken from `maps/start.bsp` in your pak. Applied at the next launch |
@@ -147,7 +162,8 @@ tools\selftest.bat boot      scripted in-engine checks: boot, collide, render, r
                              build_freeze, build_click, build_drag, build_save, binds,
                              act_arch, act_bumper, act_snap, act_wheel,
                              dig_rocket, dig_lightning, campaign, campaign_stock,
-                             campaign_dig
+                             campaign_dig, campaign_dig2, campaign_build,
+                             dig_weapons, dig_barrel
 ```
 
 Selftests write `game\arch\qconsole.log` and screenshots into `game\arch`.
