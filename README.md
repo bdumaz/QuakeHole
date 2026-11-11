@@ -1,6 +1,10 @@
 # QuakeHole
-
 *Quake, but weapons make holes.*
+
+<sub> Click to watch the video on youtube</sub>
+
+[![Watch the video](https://img.youtube.com/vi/EwZlfK05jZg/0.jpg)](https://www.youtube.com/watch?v=EwZlfK05jZg)
+
 
 The full original campaign with hole-making weapons, and a live level-building prototype on the open-source Quake engine. You stand inside the level and shape it, then run, fly and shoot through what you built, with no compile step in between.
 
