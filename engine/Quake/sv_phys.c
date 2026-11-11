@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sv_phys.c
 
 #include "quakedef.h"
+#include "arch.h" // QUAKEARCH
 
 /*
 
@@ -959,6 +960,9 @@ void SV_Physics_Client (edict_t	*ent, int num)
 // call standard player post-think
 //
 	SV_LinkEdict (ent, true);
+
+	if (Arch_Active ()) // QUAKEARCH: weapons, ammo and damage rules
+		ArchGame_PlayerFrame (ent);
 
 	pr_global_struct->time = sv.time;
 	pr_global_struct->self = EDICT_TO_PROG(ent);

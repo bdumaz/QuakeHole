@@ -20,6 +20,7 @@ void		Arch_Init (void);	/* builds the world, registers cvars and commands */
 qboolean	Arch_Active (void);	/* true while the server is running the arch map */
 const char	*Arch_Dir (void);	/* value of -archdir, forward slashes, no trailing slash; NULL if absent */
 void		Arch_TextureNames (const char *names[3]);	/* indexed by ARCH_SLOT_* */
+void		ArchGame_PlayerFrame (edict_t *ent);	/* run for each player just before its QuakeC post-think */
 
 /* arch_collide.c */
 trace_t		ArchCollide_ClipMove (edict_t *ent, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end);

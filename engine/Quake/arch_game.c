@@ -50,6 +50,44 @@ void Arch_TextureNames (const char *names[3])
 	names[ARCH_SLOT_CEILING] = arch_tex_ceiling.string;
 }
 
+/* ---------------------------------------------------------- player rules */
+
+static cvar_t	arch_selfdamage = {"arch_selfdamage", "0", CVAR_ARCHIVE};
+static cvar_t	arch_falldamage = {"arch_falldamage", "0", CVAR_ARCHIVE};
+static cvar_t	arch_infiniteammo = {"arch_infiniteammo", "1", CVAR_ARCHIVE};
+
+#define ARCH_ALL_WEAPONS	(IT_AXE | IT_SHOTGUN | IT_SUPER_SHOTGUN | IT_NAILGUN | IT_SUPER_NAILGUN | \
+				 IT_GRENADE_LAUNCHER | IT_ROCKET_LAUNCHER | IT_LIGHTNING)
+
+void ArchGame_PlayerFrame (edict_t *ent)
+{
+	eval_t	*val;
+
+	ent->v.items = (float) ((int) ent->v.items | ARCH_ALL_WEAPONS);
+
+	if (arch_infiniteammo.value)
+	{
+		ent->v.ammo_shells = 100;
+		ent->v.ammo_nails = 200;
+		ent->v.ammo_rockets = 100;
+		ent->v.ammo_cells = 100;
+	}
+
+	/* god mode blocks damage in the game code but still applies knockback, so rocket jumps work */
+	if (arch_selfdamage.value)
+		ent->v.flags = (float) ((int) ent->v.flags & ~FL_GODMODE);
+	else
+		ent->v.flags = (float) ((int) ent->v.flags | FL_GODMODE);
+
+	/* the game code reads jump_flag in post-think to detect a hard landing */
+	if (!arch_falldamage.value)
+	{
+		val = GetEdictFieldValue (ent, "jump_flag");
+		if (val)
+			val->_float = 0;
+	}
+}
+
 /* ------------------------------------------------------------- commands */
 
 /* parses "x1 y1 z1 x2 y2 z2" into a box brush; prints usage and returns NULL on bad input */
@@ -136,6 +174,9 @@ void Arch_Init (void)
 	Cvar_RegisterVariable (&arch_tex_ground);
 	Cvar_RegisterVariable (&arch_tex_wall);
 	Cvar_RegisterVariable (&arch_tex_ceiling);
+	Cvar_RegisterVariable (&arch_selfdamage);
+	Cvar_RegisterVariable (&arch_falldamage);
+	Cvar_RegisterVariable (&arch_infiniteammo);
 
 	Cmd_AddCommand ("arch_carve", Arch_Carve_f);
 	Cmd_AddCommand ("arch_add", Arch_Add_f);
