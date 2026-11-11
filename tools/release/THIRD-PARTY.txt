@@ -1,0 +1,25 @@
+Third-party software included with QuakeHole
+============================================
+
+QuakeHole.exe is QuakeSpasm 0.97.0 with QuakeHole's changes, distributed
+under the GNU General Public License, version 2 or later (LICENSE.txt).
+QuakeSpasm: https://github.com/sezero/quakespasm
+
+The DLL files next to it are the prebuilt libraries that ship with
+QuakeSpasm's Windows source tree, unmodified:
+
+  SDL2.dll                 SDL 2            zlib licence          https://www.libsdl.org
+  libogg-0.dll             libogg           BSD-style licence     https://xiph.org
+  libvorbis-0.dll          libvorbis        BSD-style licence     https://xiph.org
+  libvorbisfile-3.dll      libvorbisfile    BSD-style licence     https://xiph.org
+  libopus-0.dll            Opus             BSD-style licence     https://opus-codec.org
+  libopusfile-0.dll        opusfile         BSD-style licence     https://opus-codec.org
+  libFLAC-8.dll            FLAC             BSD-style licence     https://xiph.org/flac
+  libmpg123-0.dll          mpg123           LGPL 2.1              https://www.mpg123.de
+  libmad-0.dll             MAD              GPL 2 or later        https://www.underbit.com/products/mad
+  libmikmod-3.dll          MikMod           LGPL 2 or later       https://mikmod.sourceforge.net
+  libxmp.dll               libxmp           MIT licence           https://xmp.sourceforge.net
+
+The source code of each library is available from its project page above,
+and the exact versions used are in QuakeSpasm's source repository.
+The full SDL 2 licence text is in SDL2-LICENSE.txt.
