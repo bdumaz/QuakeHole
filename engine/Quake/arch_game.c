@@ -64,6 +64,8 @@ void ArchGame_PlayerFrame (edict_t *ent)
 {
 	eval_t	*val;
 
+	ArchBuild_PlayerFrame (ent);
+
 	ent->v.items = (float) ((int) ent->v.items | ARCH_ALL_WEAPONS);
 
 	if (arch_infiniteammo.value)
@@ -204,6 +206,8 @@ void Arch_Init (void)
 	Cmd_AddCommand ("arch_reset", Arch_Reset_f);
 	Cmd_AddCommand ("arch_stats", Arch_Stats_f);
 	Cmd_AddCommand ("arch_export", Arch_Export_f);
+
+	ArchBuild_Init ();
 
 	/* built once: the level must survive map restarts and respawns */
 	ArchWorld_Reset ();

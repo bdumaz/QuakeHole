@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sv_user.c -- server code for moving users
 
 #include "quakedef.h"
+#include "arch.h" // QUAKEARCH
 
 edict_t	*sv_player;
 
@@ -470,6 +471,13 @@ void SV_ReadClientMove (usercmd_t *move)
 	i = MSG_ReadByte ();
 	if (i)
 		host_client->edict->v.impulse = i;
+
+	if (ArchBuild_Active ()) // QUAKEARCH: no firing, jumping or weapon changes while building
+	{
+		host_client->edict->v.button0 = 0;
+		host_client->edict->v.button2 = 0;
+		host_client->edict->v.impulse = 0;
+	}
 }
 
 /*

@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // screen.c -- master for refresh, status bar, console, chat, notify, etc
 
 #include "quakedef.h"
+#include "arch.h" // QUAKEARCH
 
 /*
 
@@ -1096,6 +1097,7 @@ void SCR_UpdateScreen (void)
 	else
 	{
 		SCR_DrawCrosshair (); //johnfitz
+		ArchBuild_DrawHUD (); // QUAKEARCH
 		SCR_DrawNet ();
 		SCR_DrawTurtle ();
 		SCR_DrawPause ();

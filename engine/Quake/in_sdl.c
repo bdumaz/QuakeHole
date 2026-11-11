@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "arch.h" // QUAKEARCH
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #if defined(USE_SDL2)
 #include <SDL2/SDL.h>
@@ -703,6 +704,13 @@ void IN_JoyMove (usercmd_t *cmd)
 void IN_MouseMove(usercmd_t *cmd)
 {
 	float	dmx, dmy;
+
+	if (ArchBuild_MouseMove (total_dx, total_dy)) // QUAKEARCH: a build drag uses the mouse instead of the view
+	{
+		total_dx = 0;
+		total_dy = 0;
+		return;
+	}
 
 	dmx = total_dx * sensitivity.value;
 	dmy = total_dy * sensitivity.value;

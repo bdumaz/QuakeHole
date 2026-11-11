@@ -22,6 +22,15 @@ const char	*Arch_Dir (void);	/* value of -archdir, forward slashes, no trailing 
 void		Arch_TextureNames (const char *names[3]);	/* indexed by ARCH_SLOT_* */
 void		ArchGame_PlayerFrame (edict_t *ent);	/* run for each player just before its QuakeC post-think */
 
+/* arch_build.c */
+void		ArchBuild_Init (void);
+qboolean	ArchBuild_Active (void);			/* true while in build mode */
+void		ArchBuild_PlayerFrame (edict_t *ent);		/* server, once per frame for the player */
+qboolean	ArchBuild_KeyEvent (int key, qboolean down);	/* true if build mode used the key */
+qboolean	ArchBuild_MouseMove (int dx, int dy);		/* true if the movement must not turn the view */
+void		ArchBuild_Draw (void);				/* cursor and preview, after the world */
+void		ArchBuild_DrawHUD (void);
+
 /* arch_collide.c */
 trace_t		ArchCollide_ClipMove (edict_t *ent, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end);
 int		ArchCollide_PointContents (vec3_t p);	/* CONTENTS_SOLID or CONTENTS_EMPTY */

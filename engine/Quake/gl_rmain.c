@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_main.c
 
 #include "quakedef.h"
+#include "arch.h" // QUAKEARCH
 
 vec3_t		modelorg, r_entorigin;
 entity_t	*currententity;
@@ -676,6 +677,9 @@ void R_DrawViewModel (void)
 	if (!r_drawviewmodel.value || !r_drawentities.value || chase_active.value)
 		return;
 
+	if (ArchBuild_Active ()) // QUAKEARCH: no weapon in build mode
+		return;
+
 	if (cl.items & IT_INVISIBILITY || cl.stats[STAT_HEALTH] <= 0)
 		return;
 
@@ -939,6 +943,8 @@ void R_RenderScene (void)
 	R_DrawWorld_Water (); //johnfitz -- drawn here since they might have transparency
 
 	R_DrawEntitiesOnList (true); //johnfitz -- true means this is the pass for alpha entities
+
+	ArchBuild_Draw (); // QUAKEARCH: build cursor and preview
 
 	R_RenderDlights (); //triangle fan dlights -- johnfitz -- moved after water
 

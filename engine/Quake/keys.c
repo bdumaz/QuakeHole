@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "arch.h" // QUAKEARCH
 #include "arch_def.h"
 
 /* key up events are sent even if in console mode */
@@ -1009,6 +1010,9 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 		}
 		return;
 	}
+
+	if (ArchBuild_KeyEvent (key, down)) // QUAKEARCH: build mode takes the mouse buttons and wheel
+		return;
 
 // handle escape specialy, so the user can never unbind it
 	if (key == K_ESCAPE)

@@ -2,7 +2,7 @@
 
 A live level-building prototype on the open-source Quake engine. You stand inside the level and shape it, then run, fly and shoot through what you built, with no compile step in between.
 
-This is Stage 1 (Foundation): the engine boots into a room made of live-editable brushes, with full Quake movement and console commands to edit and export. Mouse-driven build mode comes in later stages.
+So far: the engine boots into a room made of live-editable brushes, with full Quake movement, a build mode that carves holes and pulls out blocks with the mouse, and `.map` export. Arches, jump pads and an action wheel come in the next stage.
 
 ## What you need
 
@@ -39,6 +39,7 @@ Arguments after `run.bat` are passed to the engine, for example `run.bat -window
 | Left mouse | Fire |
 | 1 to 8, mouse wheel | Choose weapon |
 | F | Toggle flying |
+| B | Toggle build mode |
 | ` | Console |
 | F12 | Screenshot |
 
@@ -46,9 +47,27 @@ These defaults live in `game\arch\default.cfg`. Rebind keys in the Options menu;
 
 You have every weapon, ammunition does not run out, and nothing damages you. Rocket jumps still push you.
 
-## Editing the level
+## Build mode
 
-The world is solid everywhere, 4096 units across, with a 320-unit room carved out of its centre. One metre is 32 units. Open the console and use:
+Press B. You stop where you are (even in mid-air), the weapon disappears, and a rectangle, the build cursor, appears on whatever surface you aim at. It snaps to a quarter-metre grid. Press B again to go back to moving.
+
+| Input | Effect |
+|---|---|
+| Mouse | Aim the cursor |
+| Left click | Carve a hole the shape of the cursor, 5 m deep |
+| Hold left and push the mouse forward | Carve a hole as deep as you push |
+| Hold left and pull the mouse back | Pull a solid block out of the surface toward you |
+| Mouse wheel | Resize the cursor |
+| Mouse wheel with left held | Change the cursor's height only |
+| Mouse wheel with left and right held | Change the cursor's width only |
+
+While you drag, the view locks and a coloured preview shows what will be carved (orange) or added (green). Release to commit; bring the depth back to zero to cancel. The line at the top of the screen shows the cursor size and drag depth in metres.
+
+A block that would bury you is refused.
+
+## Editing from the console
+
+The world is solid everywhere, 4096 units across, with a 320-unit room carved out of its centre. The outermost 16 units cannot be carved. One metre is 32 units. Open the console and use:
 
 | Command | Effect |
 |---|---|
@@ -69,13 +88,15 @@ Exported `.map` files use the standard Quake format and open in editors such as 
 | `arch_selfdamage` | 0 | Set to 1 to take damage |
 | `arch_falldamage` | 0 | Set to 1 for fall damage (also needs `arch_selfdamage 1`) |
 | `arch_infiniteammo` | 1 | Set to 0 for limited ammunition |
+| `arch_drag_speed` | 1 | Units of depth per mouse count while dragging in build mode. Raise it if drags feel slow |
 | `arch_tex_ground`, `arch_tex_wall`, `arch_tex_ceiling` | `sfloor4_5`, `wbrick1_5`, `ceiling1_3` | Texture names, taken from `maps/start.bsp` in your pak. Applied at the next launch |
 
 ## Development
 
 ```
 tools\test.bat               unit tests for the geometry code
-tools\selftest.bat boot      scripted in-engine checks: boot, collide, render, rules
+tools\selftest.bat boot      scripted in-engine checks: boot, collide, render, rules,
+                             build_freeze, build_click, build_drag
 ```
 
 Selftests write `game\arch\qconsole.log` and screenshots into `game\arch`.
