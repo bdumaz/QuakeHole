@@ -10,6 +10,7 @@ option) any later version.
 #include "arch.h"
 #include "arch_world.h"
 #include "arch_map.h"
+#include "arch_pads.h"
 
 static cvar_t	arch_tex_ground = {"arch_tex_ground", "sfloor4_5", CVAR_ARCHIVE};
 static cvar_t	arch_tex_wall = {"arch_tex_wall", "wbrick1_5", CVAR_ARCHIVE};
@@ -60,11 +61,36 @@ static cvar_t	arch_infiniteammo = {"arch_infiniteammo", "1", CVAR_ARCHIVE};
 #define ARCH_ALL_WEAPONS	(IT_AXE | IT_SHOTGUN | IT_SUPER_SHOTGUN | IT_NAILGUN | IT_SUPER_NAILGUN | \
 				 IT_GRENADE_LAUNCHER | IT_ROCKET_LAUNCHER | IT_LIGHTNING)
 
+/* jump pads: launch the player away from any pad they are touching */
+static void touch_pads (edict_t *ent)
+{
+	avec3	absmin, absmax;
+	double	velocity[3];
+	int	k;
+
+	if (!ArchPads_Count () || ent->v.health <= 0)
+		return;
+	for (k = 0; k < 3; k++)
+	{
+		absmin[k] = ent->v.origin[k] + ent->v.mins[k];
+		absmax[k] = ent->v.origin[k] + ent->v.maxs[k];
+		velocity[k] = ent->v.velocity[k];
+	}
+	if (!ArchPads_Touch (absmin, absmax, velocity))
+		return;
+	for (k = 0; k < 3; k++)
+		ent->v.velocity[k] = (float) velocity[k];
+	/* lift off: a player standing on a floor pad would otherwise stay grounded */
+	ent->v.flags = (float) ((int) ent->v.flags & ~FL_ONGROUND);
+}
+
 void ArchGame_PlayerFrame (edict_t *ent)
 {
 	eval_t	*val;
 
 	ArchBuild_PlayerFrame (ent);
+	if (!ArchBuild_Active ())
+		touch_pads (ent);
 
 	ent->v.items = (float) ((int) ent->v.items | ARCH_ALL_WEAPONS);
 
@@ -141,6 +167,7 @@ static void Arch_Carve_f (void)
 	if (!ArchWorld_Carve (box))
 		Con_Printf ("arch: brush limit reached, edit refused\n");
 	ArchBrush_Free (box);
+	ArchPads_Prune (ArchWorld_PointSolid);
 }
 
 static void Arch_Add_f (void)
@@ -152,16 +179,18 @@ static void Arch_Add_f (void)
 	if (!ArchWorld_Add (box))
 		Con_Printf ("arch: brush limit reached, edit refused\n");
 	ArchBrush_Free (box);
+	ArchPads_Prune (ArchWorld_PointSolid);
 }
 
 static void Arch_Reset_f (void)
 {
 	ArchWorld_Reset ();
+	ArchPads_Clear ();
 }
 
 static void Arch_Stats_f (void)
 {
-	Con_Printf ("arch: %d brushes, volume %.0f\n", ArchWorld_BrushCount (), ArchWorld_SolidVolume ());
+	Con_Printf ("arch: %d brushes, volume %.0f, %d pads\n", ArchWorld_BrushCount (), ArchWorld_SolidVolume (), ArchPads_Count ());
 }
 
 static void Arch_Export_f (void)

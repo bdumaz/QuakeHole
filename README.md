@@ -2,7 +2,7 @@
 
 A live level-building prototype on the open-source Quake engine. You stand inside the level and shape it, then run, fly and shoot through what you built, with no compile step in between.
 
-So far: the engine boots into a room made of live-editable brushes, with full Quake movement, a build mode that carves holes and pulls out blocks with the mouse, and `.map` export. Arches, jump pads and an action wheel come in the next stage.
+The engine boots into a room made of live-editable brushes, with full Quake movement and a build mode that carves holes, pulls out blocks, cuts arches and places jump pads with the mouse. Levels export as standard `.map` files.
 
 ## What you need
 
@@ -60,6 +60,20 @@ Press B. You stop where you are (even in mid-air), the weapon disappears, and a 
 | Mouse wheel | Resize the cursor |
 | Mouse wheel with left held | Change the cursor's height only |
 | Mouse wheel with left and right held | Change the cursor's width only |
+| Hold middle mouse | Open the action wheel; move the mouse toward an action and release to select it |
+| R | Snap: make the cursor fill the flat surface you are aiming at. R again, scrolling, or aiming elsewhere lets go |
+
+### Actions
+
+| Action | Click | Hold and drag |
+|---|---|---|
+| Extrude Quad | Carve a box 5 m deep | Carve (push) or pull out (pull) a box of any depth |
+| Extrude Arch | Carve an arched tunnel 5 m deep | The same with an arch: a rectangle topped by a half-circle. On floors and ceilings the curved end points the way you face |
+| Place Bumper | Place a jump pad the size of the cursor | Set its strength first: pull for stronger, push for weaker |
+
+A jump pad launches you away from its surface: up from a floor, sideways off a wall. You can walk through it; it is not solid. A pad disappears when the surface under it is carved away or built over, and a new pad placed over an old one replaces it.
+
+The cursor does not appear on slanted surfaces, such as the curved underside of an arch.
 
 While you drag, the view locks and a coloured preview shows what will be carved (orange) or added (green). Release to commit; bring the depth back to zero to cancel. The line at the top of the screen shows the cursor size and drag depth in metres.
 
@@ -73,13 +87,14 @@ The world is solid everywhere, 4096 units across, with a 320-unit room carved ou
 |---|---|
 | `arch_carve x1 y1 z1 x2 y2 z2` | Carves a box of empty space between two corners |
 | `arch_add x1 y1 z1 x2 y2 z2` | Fills a box with solid |
-| `arch_reset` | Restores the starting room |
+| `arch_reset` | Restores the starting room and removes all jump pads |
+| `arch_action quad\|arch\|bumper` | Selects a build action without the wheel |
 | `arch_export name` | Writes `game\arch\maps\name.map` |
 | `arch_stats` | Prints the brush count and solid volume |
 
 Changes are visible and solid immediately. For example, `arch_carve 160 -48 -160 480 48 -32` opens a corridor in the wall you face when you start.
 
-Exported `.map` files use the standard Quake format and open in editors such as TrenchBroom. To compile one into a `.bsp` you need a map compiler and a texture wad containing the three texture names used.
+Exported `.map` files use the standard Quake format and open in editors such as TrenchBroom. Jump pads are written as `trigger_push` entities, which work in stock Quake but are invisible there. To compile one into a `.bsp` you need a map compiler and a texture wad containing the three texture names used.
 
 ## Settings
 
@@ -96,7 +111,8 @@ Exported `.map` files use the standard Quake format and open in editors such as 
 ```
 tools\test.bat               unit tests for the geometry code
 tools\selftest.bat boot      scripted in-engine checks: boot, collide, render, rules,
-                             build_freeze, build_click, build_drag
+                             build_freeze, build_click, build_drag, build_save, binds,
+                             act_arch, act_bumper, act_snap, act_wheel
 ```
 
 Selftests write `game\arch\qconsole.log` and screenshots into `game\arch`.

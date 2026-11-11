@@ -218,6 +218,8 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"
     <ClCompile Include="..\..\Quake\arch_cursor.c" />
     <ClCompile Include="..\..\Quake\arch_gesture.c" />
     <ClCompile Include="..\..\Quake\arch_build.c" />
+    <ClCompile Include="..\..\Quake\arch_wheel.c" />
+    <ClCompile Include="..\..\Quake\arch_pads.c" />
     <ClCompile Include="..\..\Quake\bgmusic.c" />
     <ClCompile Include="..\..\Quake\cd_sdl.c" />
     <ClCompile Include="..\..\Quake\cfgfile.c" />
