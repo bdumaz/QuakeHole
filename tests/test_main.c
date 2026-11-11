@@ -10,6 +10,7 @@ void test_gesture (void);
 void test_actions (void);
 void test_wheel (void);
 void test_pads (void);
+void test_review3 (void);
 
 int main (void)
 {
@@ -21,6 +22,7 @@ int main (void)
 	test_actions ();
 	test_wheel ();
 	test_pads ();
+	test_review3 ();
 	printf ("%d checks, %d failures\n", t_checks, t_failures);
 	return t_failures != 0;
 }

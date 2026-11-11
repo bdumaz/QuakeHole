@@ -46,6 +46,28 @@ static int pads_overlap (const apad_t *a, const apad_t *b)
 	return 1;
 }
 
+/* the removal rule: solid just behind the centre of the rectangle, empty just in front */
+static int centre_supported (int naxis, int nsign, int plane, const int mins[3], const int maxs[3],
+			     int (*solid) (const avec3 p))
+{
+	avec3	behind, front;
+	int	k;
+
+	for (k = 0; k < 3; k++)
+		behind[k] = front[k] = (mins[k] + maxs[k]) * 0.5;
+	behind[naxis] = plane - nsign;
+	front[naxis] = plane + nsign;
+	return solid (behind) && !solid (front);
+}
+
+int ArchPads_CanPlace (const acursor_t *c, int (*solid) (const avec3 p))
+{
+	int	mins[3], maxs[3];
+
+	ArchCursor_Box (c, -ARCH_PAD_REACH, mins, maxs);
+	return centre_supported (c->naxis, c->nsign, c->plane, mins, maxs, solid);
+}
+
 int ArchPads_Add (const acursor_t *c, int speed)
 {
 	apad_t	pad;
@@ -71,18 +93,13 @@ int ArchPads_Add (const acursor_t *c, int speed)
 
 int ArchPads_Prune (int (*solid) (const avec3 p))
 {
-	int	i, k, removed = 0;
+	int	i, removed = 0;
 
 	for (i = num_pads - 1; i >= 0; i--)
 	{
 		const apad_t	*pad = &pads[i];
-		avec3		behind, front;
 
-		for (k = 0; k < 3; k++)
-			behind[k] = front[k] = (pad->mins[k] + pad->maxs[k]) * 0.5;
-		behind[pad->naxis] = pad->plane - pad->nsign;
-		front[pad->naxis] = pad->plane + pad->nsign;
-		if (!solid (behind) || solid (front))
+		if (!centre_supported (pad->naxis, pad->nsign, pad->plane, pad->mins, pad->maxs, solid))
 		{
 			remove_pad (i);
 			removed++;
@@ -125,7 +142,7 @@ static int pad_angle (const apad_t *pad)
 	if (pad->naxis == 2)
 		return pad->nsign > 0 ? -1 : -2;
 	if (pad->naxis == 0)
-		return pad->nsign > 0 ? 0 : 180;
+		return pad->nsign > 0 ? 360 : 180;	/* 0 would mean "no direction" to the stock game */
 	return pad->nsign > 0 ? 90 : 270;
 }
 
@@ -141,8 +158,8 @@ int ArchPads_Write (FILE *f)
 		if (!box)
 			continue;
 		/* the stock trigger_push multiplies its speed by 10 */
-		fprintf (f, "{\n\"classname\" \"trigger_push\"\n\"speed\" \"%d\"\n\"angle\" \"%d\"\n{\n",
-			 pad->speed / 10, pad_angle (pad));
+		fprintf (f, "{\n\"classname\" \"trigger_push\"\n\"speed\" \"%g\"\n\"angle\" \"%d\"\n{\n",
+			 pad->speed / 10.0, pad_angle (pad));
 		for (k = 0; k < box->nfaces; k++)
 		{
 			const aplane_t *pl = &box->faces[k].plane;

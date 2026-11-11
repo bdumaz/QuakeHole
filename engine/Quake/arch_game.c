@@ -168,6 +168,7 @@ static void Arch_Carve_f (void)
 		Con_Printf ("arch: brush limit reached, edit refused\n");
 	ArchBrush_Free (box);
 	ArchPads_Prune (ArchWorld_PointSolid);
+	ArchBuild_WorldChanged ();
 }
 
 static void Arch_Add_f (void)
@@ -180,12 +181,14 @@ static void Arch_Add_f (void)
 		Con_Printf ("arch: brush limit reached, edit refused\n");
 	ArchBrush_Free (box);
 	ArchPads_Prune (ArchWorld_PointSolid);
+	ArchBuild_WorldChanged ();
 }
 
 static void Arch_Reset_f (void)
 {
 	ArchWorld_Reset ();
 	ArchPads_Clear ();
+	ArchBuild_WorldChanged ();
 }
 
 static void Arch_Stats_f (void)

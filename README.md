@@ -75,7 +75,7 @@ A jump pad launches you away from its surface: up from a floor, sideways off a w
 
 The cursor does not appear on slanted surfaces, such as the curved underside of an arch.
 
-While you drag, the view locks and a coloured preview shows what will be carved (orange) or added (green). Release to commit; bring the depth back to zero to cancel. The line at the top of the screen shows the cursor size and drag depth in metres.
+While you drag, the view locks and a coloured preview shows what will be carved (orange) or added (green). Release to commit. For the two extrude actions, bringing the depth back to zero cancels; for a jump pad it places one at the default strength. The line at the top of the screen shows the cursor size and drag depth in metres.
 
 A block that would bury you is refused.
 
@@ -90,7 +90,7 @@ The world is solid everywhere, 4096 units across, with a 320-unit room carved ou
 | `arch_reset` | Restores the starting room and removes all jump pads |
 | `arch_action quad\|arch\|bumper` | Selects a build action without the wheel |
 | `arch_export name` | Writes `game\arch\maps\name.map` |
-| `arch_stats` | Prints the brush count and solid volume |
+| `arch_stats` | Prints the brush count, solid volume and number of jump pads |
 
 Changes are visible and solid immediately. For example, `arch_carve 160 -48 -160 480 48 -32` opens a corridor in the wall you face when you start.
 

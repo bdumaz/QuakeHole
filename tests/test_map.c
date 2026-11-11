@@ -3,6 +3,7 @@
 #include "t.h"
 #include "arch_world.h"
 #include "arch_map.h"
+#include "arch_pads.h"
 
 typedef struct { int p[3][3]; char tex[32]; } pface_t;
 typedef struct { pface_t faces[64]; int nfaces; } pbrush_t;
@@ -60,6 +61,7 @@ void test_map (void)
 	int id, n = 0, i, j, k, m;
 
 	ArchWorld_Reset ();
+	ArchPads_Clear ();	/* pad entities would be counted as world brushes by the parser below */
 	tunnel = ArchBrush_Box (mn, mx);
 	ArchWorld_Carve (tunnel);
 	ArchBrush_Free (tunnel);

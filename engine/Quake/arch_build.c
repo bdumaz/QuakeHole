@@ -186,12 +186,23 @@ static void apply_action (aaction_t act, int depth)
 		extrude (ArchCursor_ArchBrush (&cursor, depth), depth);
 		break;
 	case ARCH_ACTION_BUMPER:
+		if (!ArchPads_CanPlace (&cursor, ArchWorld_PointSolid))
+		{
+			Con_Printf ("arch: no surface under the middle of the pad\n");
+			return;
+		}
 		/* a click places at the default strength; a drag sets it, including a drag back to zero */
 		if (!ArchPads_Add (&cursor, act == ARCH_ACT_CLICK ? ARCH_PAD_DEFAULT : ArchPads_SpeedFromDrag (depth)))
 			Con_Printf ("arch: pad limit reached\n");
 		break;
 	}
 	cursor_pinned = false;	/* the surface may have changed */
+}
+
+/* the world was edited from outside build mode (console commands): a pinned cursor may be stale */
+void ArchBuild_WorldChanged (void)
+{
+	cursor_pinned = false;
 }
 
 static void set_action (int action)
@@ -426,6 +437,16 @@ static void update_cursor (void)
 		    hit[cursor.uaxis] >= cursor.umin && hit[cursor.uaxis] <= cursor.umax &&
 		    hit[cursor.vaxis] >= cursor.vmin && hit[cursor.vaxis] <= cursor.vmax)
 		{
+			/* the rectangle holds, but the arch still points the way the player faces */
+			if (fresh.vaxis != cursor.vaxis)
+			{
+				int umin = cursor.vmin, umax = cursor.vmax;
+				cursor.vmin = cursor.umin; cursor.vmax = cursor.umax;
+				cursor.umin = umin; cursor.umax = umax;
+				cursor.uaxis = fresh.uaxis;
+				cursor.vaxis = fresh.vaxis;
+			}
+			cursor.vdir = fresh.vdir;
 			cursor_valid = true;
 			return;
 		}
@@ -593,7 +614,8 @@ void ArchBuild_Draw (void)
 
 		if (gesture.dragging && gesture.depth && current_action != ARCH_ACTION_BUMPER)
 			draw_preview (gesture.depth);
-		n = cursor_outline (CURSOR_LIFT, outline);
+		/* pads are drawn solid and stand off the surface, so the cursor goes above them */
+		n = cursor_outline (ArchPads_Count () ? ARCH_PAD_THICK + 0.75 : CURSOR_LIFT, outline);
 		draw_outline (outline, n, current_action == ARCH_ACTION_BUMPER ? pad_rgb : cursor_rgb,
 			      current_action == ARCH_ACTION_BUMPER ? 0.4f : 0.2f);
 

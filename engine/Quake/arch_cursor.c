@@ -24,7 +24,7 @@ int ArchCursor_Place (const avec3 hit, const avec3 normal, double yaw_degrees, i
 	int	axis = -1, k, cu, cv;
 
 	for (k = 0; k < 3; k++)
-		if (fabs (normal[k]) > 0.999)
+		if (fabs (normal[k]) > 0.999999)	/* exactly axial: a nearly flat arch segment does not count */
 			axis = k;
 	if (axis < 0)
 		return 0;

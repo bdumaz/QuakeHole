@@ -33,6 +33,11 @@ void ArchPads_Clear (void);
 int  ArchPads_Count (void);
 const apad_t *ArchPads_Get (int i);	/* NULL when out of range */
 
+/* Whether a pad over the cursor rectangle would have surface under its centre:
+   solid just behind and empty just in front. This is the same rule Prune removes by,
+   so a pad that can be placed is not removed until the world changes there. */
+int  ArchPads_CanPlace (const acursor_t *c, int (*solid) (const avec3 p));
+
 /* Places a pad over the cursor rectangle. Pads it overlaps on the same surface
    are replaced. Returns 0, changing nothing, if the limit would be exceeded. */
 int  ArchPads_Add (const acursor_t *c, int speed);
