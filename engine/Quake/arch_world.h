@@ -21,7 +21,15 @@ option) any later version.
 #define ARCH_NUM_CELLS		(ARCH_GRID * ARCH_GRID * ARCH_GRID)
 #define ARCH_MAX_BRUSHES	65536
 
-void   ArchWorld_Reset (void);			/* frees everything and builds the initial world */
+/* Two worlds exist; all the calls below act on the one last selected. */
+enum { ARCH_WORLD_SANDBOX, ARCH_WORLD_CAMPAIGN, ARCH_NUM_WORLDS };
+void   ArchWorld_Select (int which);
+
+void   ArchWorld_Reset (void);			/* empties the current world and builds the sandbox's starting room in it */
+/* Empties the current world and gives it these bounds; it then holds no brushes.
+   Used for a world converted from a map. The outer ARCH_SHELL units cannot be carved. */
+void   ArchWorld_BeginCustom (const int mins[3], const int maxs[3]);
+void   ArchWorld_Insert (abrush_t *brush);	/* adds a brush as it is; takes ownership. The caller keeps brushes from overlapping */
 void   ArchWorld_SetMaxBrushes (int n);		/* for tests; Reset restores ARCH_MAX_BRUSHES */
 
 /* Edits return 1 when done (including "nothing to do") and 0 when refused by

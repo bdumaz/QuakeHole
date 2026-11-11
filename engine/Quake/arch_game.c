@@ -12,14 +12,82 @@ option) any later version.
 #include "arch_map.h"
 #include "arch_pads.h"
 #include "arch_dig.h"
+#include "arch_bsp.h"
 
 static cvar_t	arch_tex_ground = {"arch_tex_ground", "sfloor4_5", CVAR_ARCHIVE};
 static cvar_t	arch_tex_wall = {"arch_tex_wall", "wbrick1_5", CVAR_ARCHIVE};
 static cvar_t	arch_tex_ceiling = {"arch_tex_ceiling", "ceiling1_3", CVAR_ARCHIVE};
 
+static cvar_t	arch_campaign = {"arch_campaign", "1", CVAR_ARCHIVE};
+static qboolean	campaign_ready;		/* the loaded map has been converted to brushes */
+
 qboolean Arch_Active (void)
 {
 	return sv.active && !q_strcasecmp (sv.modelname, ARCH_BSPNAME);
+}
+
+qboolean Arch_BrushWorld (void)
+{
+	return sv.active && (campaign_ready || !q_strcasecmp (sv.modelname, ARCH_BSPNAME));
+}
+
+static void insert_converted (abrush_t *brush)
+{
+	ArchWorld_Insert (brush);
+}
+
+/* Rebuilds a campaign map's solid space as brushes, from the tree the engine
+   uses for point collision (hull 0). */
+static void convert_campaign_map (void)
+{
+	hull_t		*hull = &sv.worldmodel->hulls[0];
+	int		numnodes = hull->lastclipnode + 1, numplanes = sv.worldmodel->numplanes;
+	abspnode_t	*nodes;
+	abspplane_t	*planes;
+	int		mins[3], maxs[3], i, k, count;
+	double		start = Sys_DoubleTime ();
+
+	if (numnodes < 1 || numplanes < 1)
+		return;
+	nodes = (abspnode_t *) malloc (numnodes * sizeof(*nodes));
+	planes = (abspplane_t *) malloc (numplanes * sizeof(*planes));
+	for (i = 0; i < numnodes; i++)
+	{
+		nodes[i].planenum = hull->clipnodes[i].planenum;
+		nodes[i].children[0] = hull->clipnodes[i].children[0];
+		nodes[i].children[1] = hull->clipnodes[i].children[1];
+	}
+	for (i = 0; i < numplanes; i++)
+	{
+		for (k = 0; k < 3; k++)
+			planes[i].normal[k] = hull->planes[i].normal[k];
+		planes[i].dist = hull->planes[i].dist;
+	}
+	/* room around the map, so there is solid to dig into behind its outer walls */
+	for (k = 0; k < 3; k++)
+	{
+		mins[k] = (int) floor (sv.worldmodel->mins[k]) - 256;
+		maxs[k] = (int) ceil (sv.worldmodel->maxs[k]) + 256;
+	}
+	ArchWorld_BeginCustom (mins, maxs);
+	count = ArchBsp_Convert (nodes, planes, hull->firstclipnode, mins, maxs, insert_converted);
+	free (nodes);
+	free (planes);
+	campaign_ready = count > 0;
+	Con_Printf ("arch: %s rebuilt as %d brushes in %.0f ms\n", sv.name, count, (Sys_DoubleTime () - start) * 1000);
+}
+
+void Arch_ServerSpawn (void)
+{
+	campaign_ready = false;
+	if (!q_strcasecmp (sv.modelname, ARCH_BSPNAME))
+	{
+		ArchWorld_Select (ARCH_WORLD_SANDBOX);	/* the sandbox level is kept as it was left */
+		return;
+	}
+	ArchWorld_Select (ARCH_WORLD_CAMPAIGN);
+	if (arch_campaign.value)
+		convert_campaign_map ();
 }
 
 const char *Arch_Dir (void)
@@ -339,9 +407,18 @@ static abrush_t *box_from_args (void)
 	return NULL;
 }
 
+/* the editing commands only make sense in the sandbox map */
+static qboolean in_sandbox (void)
+{
+	if (Arch_Active ())
+		return true;
+	Con_Printf ("arch: not in the arch map\n");
+	return false;
+}
+
 static void Arch_Carve_f (void)
 {
-	abrush_t *box = box_from_args ();
+	abrush_t *box = in_sandbox () ? box_from_args () : NULL;
 
 	if (!box)
 		return;
@@ -354,7 +431,7 @@ static void Arch_Carve_f (void)
 
 static void Arch_Add_f (void)
 {
-	abrush_t *box = box_from_args ();
+	abrush_t *box = in_sandbox () ? box_from_args () : NULL;
 
 	if (!box)
 		return;
@@ -367,6 +444,8 @@ static void Arch_Add_f (void)
 
 static void Arch_Reset_f (void)
 {
+	if (!in_sandbox ())
+		return;
 	ArchWorld_Reset ();
 	ArchPads_Clear ();
 	ArchBuild_WorldChanged ();
@@ -384,6 +463,8 @@ static void Arch_Export_f (void)
 	FILE		*f;
 	int		ok;
 
+	if (!in_sandbox ())
+		return;
 	name = Cmd_Argv (1);
 	if (Cmd_Argc () != 2 || !*name || strstr (name, "..") || strchr (name, '/') || strchr (name, '\\') || strchr (name, ':'))
 	{
@@ -413,6 +494,7 @@ void Arch_Init (void)
 	Cvar_RegisterVariable (&arch_selfdamage);
 	Cvar_RegisterVariable (&arch_falldamage);
 	Cvar_RegisterVariable (&arch_infiniteammo);
+	Cvar_RegisterVariable (&arch_campaign);
 	Cvar_RegisterVariable (&arch_dig);
 	Cvar_RegisterVariable (&arch_dig_radius);
 	Cvar_RegisterVariable (&arch_dig_time);

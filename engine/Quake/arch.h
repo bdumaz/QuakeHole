@@ -17,7 +17,9 @@ extern const int arch_spawn_origin[3];	/* player start: feet on the room floor *
 
 /* arch_game.c */
 void		Arch_Init (void);	/* builds the world, registers cvars and commands */
-qboolean	Arch_Active (void);	/* true while the server is running the arch map */
+qboolean	Arch_Active (void);	/* true while the server is running the arch (sandbox) map */
+qboolean	Arch_BrushWorld (void);	/* true while world collision runs on brushes: the sandbox, or a converted campaign map */
+void		Arch_ServerSpawn (void);	/* call when a server starts, once its world model is loaded */
 const char	*Arch_Dir (void);	/* value of -archdir, forward slashes, no trailing slash; NULL if absent */
 void		Arch_TextureNames (const char *names[3]);	/* indexed by ARCH_SLOT_* */
 void		ArchGame_PlayerFrame (edict_t *ent);	/* run for each player just before its QuakeC post-think */

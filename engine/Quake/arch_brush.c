@@ -574,88 +574,133 @@ void ArchTrace_Init (atrace_t *tr)
 	tr->enter_raw = 1e30;
 }
 
+/* One plane of a sweep. Returns 0 if the mover is outside this plane and not
+   approaching, which means it misses the brush altogether. */
+typedef struct
+{
+	double	enter_raw, leave;
+	int	startout, getout, isray, hit;
+	avec3	hit_n;
+	double	hit_d;
+} sweep_t;
+
+static int sweep_plane (sweep_t *s, const double *n, double d, const avec3 start, const avec3 end,
+			const avec3 mins, const avec3 maxs)
+{
+	double	dd = d, d1, d2, f;
+	int	k;
+
+	/* push the plane out by the box corner nearest to it */
+	for (k = 0; k < 3; k++)
+		dd -= (n[k] < 0 ? maxs[k] : mins[k]) * n[k];
+	d1 = DOT (start, n) - dd;
+	d2 = DOT (end, n) - dd;
+
+	/* A ray lying exactly in a face plane neither enters nor leaves through that
+	   face. Letting it count as a miss would let it pass between two brushes that
+	   share the face, so the brush's other faces decide. */
+	if (s->isray && fabs (d1) <= TOUCH_EPS && fabs (d2) <= TOUCH_EPS)
+	{
+		s->startout = 1;
+		return 1;
+	}
+	if (d2 > 0)
+		s->getout = 1;
+	if (d1 >= -TOUCH_EPS)
+	{
+		s->startout = 1;
+		/* Outside this plane at the start, and either moving away or still outside
+		   at the end: the whole move is outside, so it misses the brush. A move is
+		   only stopped when it would cross the surface itself; the stopping margin
+		   is then applied on top. Stopping on any approach from inside that margin
+		   would catch a mover sliding along a slope on rounding error alone. */
+		if (d2 >= d1 || d2 > 0)
+			return 0;
+	}
+	if (d1 < -TOUCH_EPS && d2 <= 0)
+		return 1;		/* stays behind this plane */
+	if (d1 > d2)
+	{
+		/* compare unclamped times: when several planes clamp to 0, the
+		   one entered last is the face the mover is really up against */
+		f = (d1 - ARCH_TRACE_EPS) / (d1 - d2);
+		if (f > s->enter_raw)
+		{
+			s->enter_raw = f;
+			s->hit = 1;
+			for (k = 0; k < 3; k++)
+				s->hit_n[k] = n[k];
+			s->hit_d = d;
+		}
+	}
+	else
+	{
+		f = (d1 + ARCH_TRACE_EPS) / (d1 - d2);
+		if (f > 1)
+			f = 1;
+		if (f < s->leave)
+			s->leave = f;
+	}
+	return 1;
+}
+
 /* after Quake 3's CM_TraceThroughBrush */
 void ArchBrush_TraceBox (const abrush_t *b, const avec3 start, const avec3 end,
 			 const avec3 mins, const avec3 maxs, atrace_t *tr)
 {
-	const aplane_t	*hit = NULL;
-	double		enter, enter_raw = -1e30, leave = 1;
-	int		startout = 0, getout = 0;
-	int		i, k, isray;
+	sweep_t	s;
+	double	enter;
+	int	i, k;
 
-	isray = mins[0] == maxs[0] && mins[1] == maxs[1] && mins[2] == maxs[2];
+	memset (&s, 0, sizeof(s));
+	s.enter_raw = -1e30;
+	s.leave = 1;
+	s.isray = mins[0] == maxs[0] && mins[1] == maxs[1] && mins[2] == maxs[2];
 
 	for (i = 0; i < b->nfaces; i++)
+		if (!sweep_plane (&s, b->faces[i].plane.n, b->faces[i].plane.d, start, end, mins, maxs))
+			return;
+
+	/* Bevels. Pushing each face out by the box overstates how far a sharp edge
+	   between angled faces reaches, so a box would stop short of it. The brush
+	   lies inside its own bounding box, so the six sides of that box can be
+	   added as planes without changing the brush, and they cut the overstated
+	   corners back. A ray has no size and needs none of this. */
+	if (!s.isray)
 	{
-		const aplane_t	*pl = &b->faces[i].plane;
-		double		dd = pl->d, d1, d2, f;
-
-		/* push the plane out by the box corner nearest to it */
 		for (k = 0; k < 3; k++)
-			dd -= (pl->n[k] < 0 ? maxs[k] : mins[k]) * pl->n[k];
-		d1 = DOT (start, pl->n) - dd;
-		d2 = DOT (end, pl->n) - dd;
-
-		/* A ray lying exactly in a face plane neither enters nor leaves through that
-		   face. Letting it count as a miss would let it pass between two brushes that
-		   share the face, so the brush's other faces decide. */
-		if (isray && fabs (d1) <= TOUCH_EPS && fabs (d2) <= TOUCH_EPS)
 		{
-			startout = 1;
-			continue;
-		}
-		if (d2 > 0)
-			getout = 1;
-		if (d1 >= -TOUCH_EPS)
-		{
-			startout = 1;
-			if (d2 >= d1)
-				return;		/* outside this plane and not approaching: miss */
-		}
-		if (d1 < -TOUCH_EPS && d2 <= 0)
-			continue;	/* stays behind this plane */
-		if (d1 > d2)
-		{
-			/* compare unclamped times: when several planes clamp to 0, the
-			   one entered last is the face the mover is really up against */
-			f = (d1 - ARCH_TRACE_EPS) / (d1 - d2);
-			if (f > enter_raw)
-			{
-				enter_raw = f;
-				hit = pl;
-			}
-		}
-		else
-		{
-			f = (d1 + ARCH_TRACE_EPS) / (d1 - d2);
-			if (f > 1)
-				f = 1;
-			if (f < leave)
-				leave = f;
+			avec3 n = {0, 0, 0};
+			n[k] = 1;
+			if (!sweep_plane (&s, n, b->maxs[k], start, end, mins, maxs))
+				return;
+			n[k] = -1;
+			if (!sweep_plane (&s, n, -b->mins[k], start, end, mins, maxs))
+				return;
 		}
 	}
 
-	if (!startout)
+	if (!s.startout)
 	{
 		tr->startsolid = 1;
-		if (!getout)
+		if (!s.getout)
 		{
 			tr->allsolid = 1;
 			tr->fraction = 0;
 		}
 		return;
 	}
-	if (!hit)
+	if (!s.hit)
 		return;
-	enter = enter_raw < 0 ? 0 : enter_raw;
+	enter = s.enter_raw < 0 ? 0 : s.enter_raw;
 	/* between brushes hit at the same fraction, the one entered first wins: at a seam
 	   that is the brush whose surface the mover is on, not its neighbour's hidden side */
-	if (enter < leave && (enter < tr->fraction || (enter == tr->fraction && enter_raw < tr->enter_raw)))
+	if (enter < s.leave && (enter < tr->fraction || (enter == tr->fraction && s.enter_raw < tr->enter_raw)))
 	{
 		tr->fraction = enter;
-		tr->enter_raw = enter_raw;
+		tr->enter_raw = s.enter_raw;
 		for (k = 0; k < 3; k++)
-			tr->normal[k] = hit->n[k];
-		tr->dist = hit->d;
+			tr->normal[k] = s.hit_n[k];
+		tr->dist = s.hit_d;
 	}
 }

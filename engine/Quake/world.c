@@ -758,7 +758,7 @@ trace_t SV_ClipMoveToEntity (edict_t *ent, vec3_t start, vec3_t mins, vec3_t max
 	vec3_t		start_l, end_l;
 	hull_t		*hull;
 
-	if (ent == sv.edicts && Arch_Active ()) // QUAKEARCH: the world is the brush world
+	if (ent == sv.edicts && Arch_BrushWorld ()) // QUAKEARCH: the world is the brush world
 		return ArchCollide_ClipMove (ent, start, mins, maxs, end);
 
 // fill in a default trace

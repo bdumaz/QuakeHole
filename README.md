@@ -88,7 +88,15 @@ In move mode, two weapons reshape the level:
 
 Everything dug is made of half-metre cubes on the world grid, so the build cursor works on it and it exports exactly. Jump pads whose surface is dug away disappear. There is no undo; set `arch_dig 0` to shoot without changing the level.
 
-Each crater splits the level into more pieces. After several hundred craters in one session the engine may refuse further edits with "brush limit reached".
+Each crater splits the level into more pieces. In testing, three thousand craters used about a third of the limit, so this rarely matters; past the limit the engine refuses further edits with "brush limit reached".
+
+## The Quake campaign
+
+The campaign and any other map still play in this engine: choose New Game from the menu, or type `map e1m1` in the console. Type `map arch` to return to your sandbox level, which is kept as you left it.
+
+When a campaign map loads, its solid space is rebuilt as the same kind of brushes the sandbox uses, and collision with the world runs on those. This is groundwork for digging into campaign maps, which is not possible yet: for now they cannot be changed, and building, the sandbox's free weapons and its damage rules stay in the sandbox.
+
+Two differences from original Quake are known. A few invisible barriers that mappers placed are gone, so the odd spot is reachable that was not. And movers collide with their real size where the original uses three fixed sizes, which can matter in very tight spaces. Set `arch_campaign 0` and restart the map to get the original collision back.
 
 ## Editing from the console
 
@@ -117,6 +125,7 @@ Exported `.map` files use the standard Quake format and open in editors such as 
 | `arch_dig` | 1 | Set to 0 to stop weapons digging into the level |
 | `arch_dig_radius` | 64 | Crater radius for rockets and grenades, in units (32 units = 1 m) |
 | `arch_dig_time` | 1 | Seconds the lightning gun must stay on one cube to destroy it |
+| `arch_campaign` | 1 | Set to 0 to run campaign maps on their original collision. Takes effect when a map starts |
 | `arch_drag_speed` | 1 | Units of depth per mouse count while dragging in build mode. Raise it if drags feel slow |
 | `arch_tex_ground`, `arch_tex_wall`, `arch_tex_ceiling` | `sfloor4_5`, `wbrick1_5`, `ceiling1_3` | Texture names, taken from `maps/start.bsp` in your pak. Applied at the next launch |
 
@@ -127,7 +136,7 @@ tools\test.bat               unit tests for the geometry code
 tools\selftest.bat boot      scripted in-engine checks: boot, collide, render, rules,
                              build_freeze, build_click, build_drag, build_save, binds,
                              act_arch, act_bumper, act_snap, act_wheel,
-                             dig_rocket, dig_lightning
+                             dig_rocket, dig_lightning, campaign, campaign_stock
 ```
 
 Selftests write `game\arch\qconsole.log` and screenshots into `game\arch`.

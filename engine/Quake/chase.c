@@ -53,7 +53,7 @@ void TraceLine (vec3_t start, vec3_t end, vec3_t impact)
 {
 	trace_t	trace;
 
-	if (Arch_Active ()) // QUAKEARCH: the arch map's geometry is the brush world
+	if (Arch_BrushWorld ()) // QUAKEARCH: the arch map's geometry is the brush world
 	{
 		trace = ArchCollide_ClipMove (NULL, start, vec3_origin, vec3_origin, end);
 		VectorCopy (trace.endpos, impact);

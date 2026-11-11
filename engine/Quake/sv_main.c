@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sv_main.c -- server main program
 
 #include "quakedef.h"
+#include "arch.h" // QUAKEARCH
 
 server_t	sv;
 server_static_t	svs;
@@ -1555,6 +1556,7 @@ void SV_SpawnServer (const char *server)
 		return;
 	}
 	sv.models[1] = sv.worldmodel;
+	Arch_ServerSpawn (); // QUAKEARCH: pick the brush world for this map
 
 //
 // clear world interaction links
