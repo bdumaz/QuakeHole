@@ -94,7 +94,17 @@ Each crater splits the level into more pieces. In testing, three thousand crater
 
 The campaign and any other map still play in this engine: choose New Game from the menu, or type `map e1m1` in the console. Type `map arch` to return to your sandbox level, which is kept as you left it.
 
-When a campaign map loads, its solid space is rebuilt as the same kind of brushes the sandbox uses, and collision with the world runs on those. This is groundwork for digging into campaign maps, which is not possible yet: for now they cannot be changed, and building, the sandbox's free weapons and its damage rules stay in the sandbox.
+When a campaign map loads, its solid space is rebuilt as the same kind of brushes the sandbox uses, and collision with the world runs on those. That lets weapons dig into campaign maps as they do in the sandbox:
+
+- A rocket or grenade blasts a stepped crater out of a wall, floor or ceiling. The wall around it keeps its texture and lighting, and the inside of the hole takes the texture of the wall it was blasted from.
+- The lightning gun bores half-metre cubes, one per second held.
+- Dig through to another room and you can see, shoot and walk through the hole. So can the monsters.
+- Items and monsters standing on a floor that is dug away fall.
+- Doors, lifts, buttons, liquids and the sky cannot be dug. Restarting the map restores it; holes are not kept in savegames.
+
+After the first dig in a map the engine stops skipping rooms it believes are out of sight, since a hole may have joined them. Large maps draw somewhat slower from then until the map restarts.
+
+Building, jump pads, the sandbox's free weapons and its damage rules stay in the sandbox. In the campaign you dig with the weapons and ammunition you find.
 
 Three differences from original Quake are known. A few invisible barriers that mappers placed are gone, so the odd spot is reachable that was not. Movers collide with their real size where the original uses three fixed sizes, which can matter in very tight spaces. And on two maps (E1M5 and E4M7) rockets and nails explode against the sky where the original removes them silently. Set `arch_campaign 0` and restart the map to get the original collision back.
 
@@ -136,7 +146,8 @@ tools\test.bat               unit tests for the geometry code
 tools\selftest.bat boot      scripted in-engine checks: boot, collide, render, rules,
                              build_freeze, build_click, build_drag, build_save, binds,
                              act_arch, act_bumper, act_snap, act_wheel,
-                             dig_rocket, dig_lightning, campaign, campaign_stock
+                             dig_rocket, dig_lightning, campaign, campaign_stock,
+                             campaign_dig
 ```
 
 Selftests write `game\arch\qconsole.log` and screenshots into `game\arch`.

@@ -561,6 +561,8 @@ int SV_PointContents (vec3_t p)
 		return ArchCollide_PointContents (p);
 
 	cont = SV_HullPointContents (&sv.worldmodel->hulls[0], 0, p);
+	if (cont == CONTENTS_SOLID && ArchSurf_Dug () && Arch_BrushWorld () && ArchCollide_PointContents (p) != CONTENTS_SOLID)
+		cont = CONTENTS_EMPTY; // QUAKEARCH: dug out
 	if (cont <= CONTENTS_CURRENT_0 && cont >= CONTENTS_CURRENT_DOWN)
 		cont = CONTENTS_WATER;
 	return cont;
@@ -570,6 +572,13 @@ int SV_TruePointContents (vec3_t p)
 {
 	if (Arch_Active ()) // QUAKEARCH
 		return ArchCollide_PointContents (p);
+	if (ArchSurf_Dug () && Arch_BrushWorld ()) // QUAKEARCH: dug out
+	{
+		int cont = SV_HullPointContents (&sv.worldmodel->hulls[0], 0, p);
+		if (cont == CONTENTS_SOLID && ArchCollide_PointContents (p) != CONTENTS_SOLID)
+			cont = CONTENTS_EMPTY;
+		return cont;
+	}
 
 	return SV_HullPointContents (&sv.worldmodel->hulls[0], 0, p);
 }

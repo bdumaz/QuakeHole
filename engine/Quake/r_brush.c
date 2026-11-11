@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_brush.c: brush model rendering. renamed from r_surf.c
 
 #include "quakedef.h"
+#include "arch.h" // QUAKEARCH
 
 extern cvar_t gl_fullbrights, r_drawflat, gl_overbright, r_oldwater; //johnfitz
 extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
@@ -664,6 +665,7 @@ void GL_BuildBModelVertexBuffer (void)
 			numverts += m->surfaces[i].numedges;
 		}
 	}
+	numverts += ArchSurf_VertexCount (); // QUAKEARCH: fragments of dug surfaces
 	
 // build vertex array
 	varray_bytes = VERTEXSIZE * sizeof(float) * numverts;
@@ -684,6 +686,7 @@ void GL_BuildBModelVertexBuffer (void)
 			varray_index += s->numedges;
 		}
 	}
+	varray_index = ArchSurf_WriteVerts (varray, varray_index); // QUAKEARCH
 
 // upload to GPU
 	GL_BindBufferFunc (GL_ARRAY_BUFFER, gl_bmodel_vbo);

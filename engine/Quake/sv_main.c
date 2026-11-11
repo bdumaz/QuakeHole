@@ -643,7 +643,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 			// for us to say whether it's in the PVS, so don't try to vis cull it.
 			// this commonly happens with rotators, because they often have huge bboxes
 			// spanning the entire map, or really tall lifts, etc.
-			if (i == ent->num_leafs && ent->num_leafs < MAX_ENT_LEAFS)
+			if (i == ent->num_leafs && ent->num_leafs < MAX_ENT_LEAFS && !ArchSurf_Dug ()) // QUAKEARCH: holes defeat the map's visibility data
 				continue;		// not visible
 		}
 

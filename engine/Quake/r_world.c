@@ -113,7 +113,8 @@ void R_MarkSurfaces (void)
 			nearwaterportal = true;
 
 	// choose vis data
-	if (r_novis.value || r_viewleaf->contents == CONTENTS_SOLID || r_viewleaf->contents == CONTENTS_SKY)
+	if (r_novis.value || ArchSurf_Dug () /* QUAKEARCH: a hole can join rooms the map says cannot see each other */ ||
+	    r_viewleaf->contents == CONTENTS_SOLID || r_viewleaf->contents == CONTENTS_SKY)
 		vis = Mod_NoVisPVS (cl.worldmodel);
 	else if (nearwaterportal)
 		vis = SV_FatPVS (r_origin, cl.worldmodel);
@@ -143,7 +144,8 @@ void R_MarkSurfaces (void)
 					if (surf->visframe != r_visframecount)
 					{
 						surf->visframe = r_visframecount;
-						if (!R_CullBox(surf->mins, surf->maxs) && !R_BackFaceCull (surf))
+						if (!ArchSurf_Hidden (surf) /* QUAKEARCH: replaced by fragments */ &&
+						    !R_CullBox(surf->mins, surf->maxs) && !R_BackFaceCull (surf))
 						{
 							rs_brushpolys++; //count wpolys here
 							R_ChainSurface(surf, chain_world);
@@ -159,6 +161,8 @@ void R_MarkSurfaces (void)
 				R_StoreEfrags (&leaf->efrags);
 		}
 	}
+
+	ArchSurf_Chain (); // QUAKEARCH: what is left of surfaces that were dug into
 }
 
 //==============================================================================
@@ -1304,6 +1308,8 @@ void R_DrawWorld (void)
 
 	if (Arch_Active ()) // QUAKEARCH: the visible world is the brush world
 		ArchRender_Draw ();
+	else
+		ArchSurf_DrawHoles (); // QUAKEARCH: the inside of holes dug in a campaign map
 }
 
 /*

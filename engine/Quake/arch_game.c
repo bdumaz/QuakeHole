@@ -158,7 +158,7 @@ static double		dig_refused_time = -10;
    player's frame runs. */
 static void note_dig_event (int kind, const float *v)
 {
-	if (kind == ARCH_DIG_NONE || !arch_dig.value || !Arch_Active () || num_dig_events == MAX_DIG_EVENTS)
+	if (kind == ARCH_DIG_NONE || !arch_dig.value || !Arch_BrushWorld () || num_dig_events == MAX_DIG_EVENTS)
 		return;
 	dig_events[num_dig_events].kind = kind;
 	memcpy (dig_events[num_dig_events].v, v, sizeof(dig_events[0].v));
@@ -201,6 +201,8 @@ static void drop_unsupported_entities (void)
 		below[0] = e->v.origin[0];
 		below[1] = e->v.origin[1];
 		below[2] = e->v.origin[2] + e->v.mins[2] - 1;
+		if (e->v.groundentity && PROG_TO_EDICT (e->v.groundentity) != sv.edicts)
+			continue;	/* standing on a lift or a door, which digging never changes */
 		if (!ArchWorld_PointSolid (below))
 			e->v.flags = (float) ((int) e->v.flags & ~FL_ONGROUND);
 	}
@@ -215,16 +217,21 @@ void ArchGame_NewMap (void)
 	dig_refused_time = -10;
 }
 
-/* removes one box of solid; false if the brush limit refused it */
-static qboolean dig_box (const int mins[3], const int maxs[3])
+/* removes one box of solid; false if the brush limit refused it. In a campaign
+   map, look says what the inside of the hole should look like. */
+static qboolean dig_box (const int mins[3], const int maxs[3], int look)
 {
 	abrush_t	*box = ArchBrush_Box (mins, maxs);
-	int		ok;
+	int		ok, i, revision = ArchWorld_Revision ();
 
 	if (!box)
 		return true;
+	for (i = 0; i < box->nfaces; i++)
+		box->faces[i].plane.tag = look;
 	ok = ArchWorld_Carve (box);
 	ArchBrush_Free (box);
+	if (ok && !Arch_Active () && ArchWorld_Revision () != revision)
+		ArchSurf_Dig (mins, maxs);	/* the map's own surfaces lose what stood in front of this box */
 	if (!ok && sv.time - dig_refused_time > 1)
 	{
 		dig_refused_time = sv.time;
@@ -237,15 +244,26 @@ static qboolean dig_box (const int mins[3], const int maxs[3])
 static void dig_blast (const float *pos)
 {
 	avec3	centre;
+	vec3_t	at, lo, hi;
 	double	radius = arch_dig_radius.value;
-	int	n, i;
+	int	n, i, k, look = 0;
 
 	if (radius < ARCH_DIG_CELL) radius = ARCH_DIG_CELL;
 	if (radius > ARCH_DIG_MAX_RADIUS) radius = ARCH_DIG_MAX_RADIUS;
-	centre[0] = pos[0]; centre[1] = pos[1]; centre[2] = pos[2];
+	for (k = 0; k < 3; k++)
+	{
+		centre[k] = at[k] = pos[k];
+		lo[k] = pos[k] - (float) radius - ARCH_DIG_CELL;
+		hi[k] = pos[k] + (float) radius + ARCH_DIG_CELL;
+	}
+	if (!Arch_Active ())
+	{
+		look = ArchSurf_LookFor (at);
+		ArchSurf_NoteDig (lo, hi, look);
+	}
 	n = ArchDig_Crater (centre, radius, dig_boxes, ARCH_DIG_MAX_BOXES);
 	for (i = 0; i < n; i++)
-		if (!dig_box (dig_boxes[i], dig_boxes[i] + 3))
+		if (!dig_box (dig_boxes[i], dig_boxes[i] + 3, look))
 			break;
 }
 
@@ -255,7 +273,7 @@ static void dig_beam (const float *v)
 	avec3	beam_end, beam_dir;
 	vec3_t	dir, end, centre;
 	double	hold = arch_dig_time.value;
-	int	cell[3], mins[3], maxs[3], k, revision;
+	int	cell[3], mins[3], maxs[3], k, revision, look = 0;
 
 	if (hold < 0.1) hold = 0.1;
 	if (hold > 10) hold = 10;
@@ -286,8 +304,19 @@ static void dig_beam (const float *v)
 	}
 	ArchDig_CellBox (cell, mins, maxs);
 	revision = ArchWorld_Revision ();
-	if (!dig_box (mins, maxs) || ArchWorld_Revision () == revision)
-		return;		/* refused, or nothing there could be removed (the world's outer shell) */
+	if (!Arch_Active ())
+	{
+		vec3_t lo, hi;
+		for (k = 0; k < 3; k++)
+		{
+			lo[k] = (float) mins[k];
+			hi[k] = (float) maxs[k];
+		}
+		look = ArchSurf_LookFor (end);
+		ArchSurf_NoteDig (lo, hi, look);
+	}
+	if (!dig_box (mins, maxs, look) || ArchWorld_Revision () == revision)
+		return;		/* refused, or nothing there could be removed (sky, or the world's outer shell) */
 	for (k = 0; k < 3; k++)
 		centre[k] = (mins[k] + maxs[k]) * 0.5f;
 	/* the cube bursts: grey chips and a brighter flash */
@@ -309,8 +338,13 @@ static void run_dig_events (void)
 	num_dig_events = 0;
 	if (ArchWorld_Revision () != revision)
 	{
-		ArchPads_Prune (ArchWorld_PointSolid);
-		ArchBuild_WorldChanged ();
+		if (Arch_Active ())
+		{
+			ArchPads_Prune (ArchWorld_PointSolid);
+			ArchBuild_WorldChanged ();
+		}
+		else
+			ArchSurf_Commit ();
 		drop_unsupported_entities ();
 	}
 }
@@ -343,6 +377,8 @@ void ArchGame_PlayerFrame (edict_t *ent)
 	eval_t	*val;
 
 	run_dig_events ();
+	if (!Arch_Active ())
+		return;		/* a campaign map: digging only, none of the sandbox's rules */
 	ArchBuild_PlayerFrame (ent);
 	if (!ArchBuild_Active ())
 		touch_pads (ent);

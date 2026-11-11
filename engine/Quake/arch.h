@@ -41,6 +41,19 @@ qboolean	ArchBuild_MouseMove (int dx, int dy);		/* true if the movement must not
 void		ArchBuild_Draw (void);				/* cursor and preview, after the world */
 void		ArchBuild_DrawHUD (void);
 
+/* arch_surf.c: the drawing side of digging in campaign maps */
+qboolean	ArchSurf_Dug (void);				/* the current map has been dug since it started */
+void		ArchSurf_NewMap (void);				/* a map is starting: forget all cuts */
+int		ArchSurf_LookFor (vec3_t pos);			/* texture and brightness for a dig at this point */
+void		ArchSurf_NoteDig (const float mins[3], const float maxs[3], int look);
+void		ArchSurf_Dig (const int mins[3], const int maxs[3]);	/* cut the map's surfaces where this box of solid went */
+void		ArchSurf_Commit (void);				/* after the last box of a dig */
+int		ArchSurf_VertexCount (void);
+unsigned int	ArchSurf_WriteVerts (float *varray, unsigned int index);
+void		ArchSurf_Chain (void);
+qboolean	ArchSurf_Hidden (const msurface_t *surf);
+void		ArchSurf_DrawHoles (void);
+
 /* arch_collide.c */
 trace_t		ArchCollide_ClipMove (edict_t *ent, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end);
 int		ArchCollide_PointContents (vec3_t p);	/* CONTENTS_SOLID or CONTENTS_EMPTY */

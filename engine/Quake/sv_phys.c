@@ -961,7 +961,7 @@ void SV_Physics_Client (edict_t	*ent, int num)
 //
 	SV_LinkEdict (ent, true);
 
-	if (Arch_Active ()) // QUAKEARCH: weapons, ammo and damage rules
+	if (Arch_BrushWorld ()) // QUAKEARCH: digging, and in the sandbox weapons, ammo and damage rules
 		ArchGame_PlayerFrame (ent);
 
 	pr_global_struct->time = sv.time;

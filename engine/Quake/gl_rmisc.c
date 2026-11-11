@@ -380,6 +380,8 @@ void R_NewMap (void)
 {
 	int		i;
 
+	ArchSurf_NewMap (); // QUAKEARCH: before the vertex buffer is built below
+
 	for (i=0 ; i<256 ; i++)
 		d_lightstylevalue[i] = 264;		// normal light value
 
