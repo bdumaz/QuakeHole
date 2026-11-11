@@ -11,6 +11,7 @@ void test_actions (void);
 void test_wheel (void);
 void test_pads (void);
 void test_review3 (void);
+void test_dig (void);
 
 int main (void)
 {
@@ -23,6 +24,7 @@ int main (void)
 	test_wheel ();
 	test_pads ();
 	test_review3 ();
+	test_dig ();
 	printf ("%d checks, %d failures\n", t_checks, t_failures);
 	return t_failures != 0;
 }

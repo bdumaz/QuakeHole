@@ -11,6 +11,7 @@ option) any later version.
 #include "arch_world.h"
 #include "arch_map.h"
 #include "arch_pads.h"
+#include "arch_dig.h"
 
 static cvar_t	arch_tex_ground = {"arch_tex_ground", "sfloor4_5", CVAR_ARCHIVE};
 static cvar_t	arch_tex_wall = {"arch_tex_wall", "wbrick1_5", CVAR_ARCHIVE};
@@ -61,6 +62,151 @@ static cvar_t	arch_infiniteammo = {"arch_infiniteammo", "1", CVAR_ARCHIVE};
 #define ARCH_ALL_WEAPONS	(IT_AXE | IT_SHOTGUN | IT_SUPER_SHOTGUN | IT_NAILGUN | IT_SUPER_NAILGUN | \
 				 IT_GRENADE_LAUNCHER | IT_ROCKET_LAUNCHER | IT_LIGHTNING)
 
+/* -------------------------------------------------------- weapon digging */
+
+static cvar_t	arch_dig = {"arch_dig", "1", CVAR_ARCHIVE};
+static cvar_t	arch_dig_radius = {"arch_dig_radius", "64", CVAR_ARCHIVE};
+static cvar_t	arch_dig_time = {"arch_dig_time", "1", CVAR_ARCHIVE};
+
+#define MAX_DIG_EVENTS	64
+
+typedef struct { int kind; float v[6]; } digevent_t;
+
+static adigparse_t	dig_parser;
+static digevent_t	dig_events[MAX_DIG_EVENTS];
+static int		num_dig_events;
+static adwell_t		dig_dwell;
+static int		dig_boxes[ARCH_DIG_MAX_BOXES][6];
+static double		dig_refused_time = -10;
+
+/* The game code reports explosions and beams from inside its own functions, in
+   the middle of physics. They are only noted here and dug at the start of the
+   next server frame. */
+static void note_dig_event (int kind, const float *v)
+{
+	if (kind == ARCH_DIG_NONE || !arch_dig.value || !Arch_Active () || num_dig_events == MAX_DIG_EVENTS)
+		return;
+	dig_events[num_dig_events].kind = kind;
+	memcpy (dig_events[num_dig_events].v, v, sizeof(dig_events[0].v));
+	num_dig_events++;
+}
+
+void ArchGame_WroteByte (int dest, int value)
+{
+	float	out[6];
+	note_dig_event (ArchDigParse_Byte (&dig_parser, dest, value, out), out);
+}
+
+void ArchGame_WroteCoord (int dest, float value)
+{
+	float	out[6];
+	note_dig_event (ArchDigParse_Coord (&dig_parser, dest, value, out), out);
+}
+
+void ArchGame_WroteEntity (int dest)
+{
+	float	out[6];
+	note_dig_event (ArchDigParse_Entity (&dig_parser, dest, out), out);
+}
+
+/* removes one box of solid; false if the brush limit refused it */
+static qboolean dig_box (const int mins[3], const int maxs[3])
+{
+	abrush_t	*box = ArchBrush_Box (mins, maxs);
+	int		ok;
+
+	if (!box)
+		return true;
+	ok = ArchWorld_Carve (box);
+	ArchBrush_Free (box);
+	if (!ok && sv.time - dig_refused_time > 1)
+	{
+		dig_refused_time = sv.time;
+		Con_Printf ("arch: brush limit reached, edit refused\n");
+	}
+	return ok != 0;
+}
+
+/* an explosion: remove the grid cubes around it */
+static void dig_blast (const float *pos)
+{
+	avec3	centre;
+	double	radius = arch_dig_radius.value;
+	int	n, i;
+
+	if (radius < ARCH_DIG_CELL) radius = ARCH_DIG_CELL;
+	if (radius > ARCH_DIG_MAX_RADIUS) radius = ARCH_DIG_MAX_RADIUS;
+	centre[0] = pos[0]; centre[1] = pos[1]; centre[2] = pos[2];
+	n = ArchDig_Crater (centre, radius, dig_boxes, ARCH_DIG_MAX_BOXES);
+	for (i = 0; i < n; i++)
+		if (!dig_box (dig_boxes[i], dig_boxes[i] + 3))
+			break;
+}
+
+/* a lightning beam report: time how long it stays on one cube, and remove the cube when the time is up */
+static void dig_beam (const float *v)
+{
+	avec3	beam_end, beam_dir;
+	vec3_t	dir, end, centre;
+	double	hold = arch_dig_time.value;
+	int	cell[3], mins[3], maxs[3], k;
+
+	if (hold < 0.1) hold = 0.1;
+	if (hold > 10) hold = 10;
+	for (k = 0; k < 3; k++)
+	{
+		dir[k] = v[3 + k] - v[k];
+		end[k] = v[3 + k];
+	}
+	if (VectorNormalize (dir) < 1)
+	{
+		ArchDig_DwellReset (&dig_dwell);
+		return;
+	}
+	for (k = 0; k < 3; k++)
+	{
+		beam_end[k] = end[k];
+		beam_dir[k] = dir[k];
+	}
+	if (!ArchDig_BeamCell (beam_end, beam_dir, ArchWorld_PointSolid, cell))
+	{
+		ArchDig_DwellReset (&dig_dwell);	/* the beam ended in open air */
+		return;
+	}
+	if (!ArchDig_Dwell (&dig_dwell, cell, sv.time, hold))
+	{
+		SV_StartParticle (end, vec3_origin, 111, 4);	/* sparks while it works */
+		return;
+	}
+	ArchDig_CellBox (cell, mins, maxs);
+	if (!dig_box (mins, maxs))
+		return;
+	for (k = 0; k < 3; k++)
+		centre[k] = (mins[k] + maxs[k]) * 0.5f;
+	/* the cube bursts: grey chips and a brighter flash */
+	SV_StartParticle (centre, vec3_origin, 4, 60);
+	SV_StartParticle (centre, vec3_origin, 111, 30);
+}
+
+static void run_dig_events (void)
+{
+	int	i, dug = num_dig_events;
+
+	for (i = 0; i < num_dig_events; i++)
+	{
+		if (dig_events[i].kind == ARCH_DIG_BLAST)
+			dig_blast (dig_events[i].v);
+		else
+			dig_beam (dig_events[i].v);
+	}
+	num_dig_events = 0;
+	if (dug)
+	{
+		ArchPads_Prune (ArchWorld_PointSolid);
+		ArchBuild_WorldChanged ();
+	}
+}
+
 /* jump pads: launch the player away from any pad they are touching */
 static void touch_pads (edict_t *ent)
 {
@@ -88,6 +234,7 @@ void ArchGame_PlayerFrame (edict_t *ent)
 {
 	eval_t	*val;
 
+	run_dig_events ();
 	ArchBuild_PlayerFrame (ent);
 	if (!ArchBuild_Active ())
 		touch_pads (ent);
@@ -232,6 +379,9 @@ void Arch_Init (void)
 	Cvar_RegisterVariable (&arch_selfdamage);
 	Cvar_RegisterVariable (&arch_falldamage);
 	Cvar_RegisterVariable (&arch_infiniteammo);
+	Cvar_RegisterVariable (&arch_dig);
+	Cvar_RegisterVariable (&arch_dig_radius);
+	Cvar_RegisterVariable (&arch_dig_time);
 
 	Cmd_AddCommand ("arch_carve", Arch_Carve_f);
 	Cmd_AddCommand ("arch_add", Arch_Add_f);

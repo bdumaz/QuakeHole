@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "arch.h" // QUAKEARCH
 
 #define	STRINGTEMP_BUFFERS		16
 #define	STRINGTEMP_LENGTH		1024
@@ -1537,6 +1538,7 @@ static sizebuf_t *WriteDest (void)
 
 static void PF_WriteByte (void)
 {
+	ArchGame_WroteByte ((int) G_FLOAT(OFS_PARM0), (int) G_FLOAT(OFS_PARM1)); // QUAKEARCH
 	MSG_WriteByte (WriteDest(), G_FLOAT(OFS_PARM1));
 }
 
@@ -1562,6 +1564,7 @@ static void PF_WriteAngle (void)
 
 static void PF_WriteCoord (void)
 {
+	ArchGame_WroteCoord ((int) G_FLOAT(OFS_PARM0), G_FLOAT(OFS_PARM1)); // QUAKEARCH
 	MSG_WriteCoord (WriteDest(), G_FLOAT(OFS_PARM1), sv.protocolflags);
 }
 
@@ -1572,6 +1575,7 @@ static void PF_WriteString (void)
 
 static void PF_WriteEntity (void)
 {
+	ArchGame_WroteEntity ((int) G_FLOAT(OFS_PARM0)); // QUAKEARCH
 	MSG_WriteShort (WriteDest(), G_EDICTNUM(OFS_PARM1));
 }
 

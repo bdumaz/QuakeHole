@@ -79,6 +79,17 @@ While you drag, the view locks and a coloured preview shows what will be carved 
 
 A block that would bury you is refused.
 
+## Digging with weapons
+
+In move mode, two weapons reshape the level:
+
+- **Rockets and grenades** blast a stepped crater about 4 m across out of whatever they hit.
+- **The lightning gun** destroys the half-metre cube it is touching once you have held the beam on it for one second, with a burst of debris. Keep holding to bore deeper, one cube per second. Sparks at the beam's end show it is working.
+
+Everything dug is made of half-metre cubes on the world grid, so the build cursor works on it and it exports exactly. Jump pads whose surface is dug away disappear. There is no undo; set `arch_dig 0` to shoot without changing the level.
+
+Each crater splits the level into more pieces. After several hundred craters in one session the engine may refuse further edits with "brush limit reached".
+
 ## Editing from the console
 
 The world is solid everywhere, 4096 units across, with a 320-unit room carved out of its centre. The outermost 16 units cannot be carved. One metre is 32 units. Open the console and use:
@@ -103,6 +114,9 @@ Exported `.map` files use the standard Quake format and open in editors such as 
 | `arch_selfdamage` | 0 | Set to 1 to take damage |
 | `arch_falldamage` | 0 | Set to 1 for fall damage (also needs `arch_selfdamage 1`) |
 | `arch_infiniteammo` | 1 | Set to 0 for limited ammunition |
+| `arch_dig` | 1 | Set to 0 to stop weapons digging into the level |
+| `arch_dig_radius` | 64 | Crater radius for rockets and grenades, in units (32 units = 1 m) |
+| `arch_dig_time` | 1 | Seconds the lightning gun must stay on one cube to destroy it |
 | `arch_drag_speed` | 1 | Units of depth per mouse count while dragging in build mode. Raise it if drags feel slow |
 | `arch_tex_ground`, `arch_tex_wall`, `arch_tex_ceiling` | `sfloor4_5`, `wbrick1_5`, `ceiling1_3` | Texture names, taken from `maps/start.bsp` in your pak. Applied at the next launch |
 
@@ -112,7 +126,8 @@ Exported `.map` files use the standard Quake format and open in editors such as 
 tools\test.bat               unit tests for the geometry code
 tools\selftest.bat boot      scripted in-engine checks: boot, collide, render, rules,
                              build_freeze, build_click, build_drag, build_save, binds,
-                             act_arch, act_bumper, act_snap, act_wheel
+                             act_arch, act_bumper, act_snap, act_wheel,
+                             dig_rocket, dig_lightning
 ```
 
 Selftests write `game\arch\qconsole.log` and screenshots into `game\arch`.
