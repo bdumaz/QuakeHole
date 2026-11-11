@@ -41,6 +41,7 @@ static qboolean		unfreeze_check;	/* the first player frame of a map has not run 
    through the console. A game started from the menu is played as normal. */
 static qboolean		build_session;
 static qboolean		intro_pending;	/* show the welcome text once the cube room is on screen */
+static qboolean		help_visible;	/* the key list, toggled with H */
 static double		intro_until;
 
 static edict_t *build_player (void)
@@ -788,6 +789,7 @@ static void ArchBuild_Session_f (void)
 void ArchBuild_EndSession (void)
 {
 	build_session = false;
+	help_visible = false;
 	intro_pending = false;
 	intro_until = 0;
 }
@@ -795,7 +797,76 @@ void ArchBuild_EndSession (void)
 static const char *intro_text =
 	"This is build mode. You can edit this map or load an existing map through the console, "
 	"for example with 'map E1M1'. Maps cannot be saved in this version yet.";
-static const char *intro_hint = "Press B to start building.";
+static const char *intro_hint = "Press B to start building. Press H for help.";
+
+/* the key list for building: offered wherever build mode is */
+static void ArchBuild_Help_f (void)
+{
+	if (!Arch_Active () && !build_session)
+		return;		/* a normal game has no build mode to explain */
+	help_visible = !help_visible;
+	if (help_visible)
+		intro_until = 0;	/* the help replaces the welcome text */
+}
+
+static const char *help_lines[][2] =
+{
+	{"BUILDING", NULL},
+	{"B", "Enter or leave build mode"},
+	{"Left click", "Carve a hole (or place a jump pad)"},
+	{"Hold left, push mouse", "Carve deeper"},
+	{"Hold left, pull mouse", "Pull out a block"},
+	{"Mouse wheel", "Resize the cursor"},
+	{"Left + wheel", "Cursor height only"},
+	{"Left + right + wheel", "Cursor width only"},
+	{"Hold middle mouse", "Action wheel: box, arch, jump pad"},
+	{"R", "Fit the cursor to the wall"},
+	{"", NULL},
+	{"MOVING", NULL},
+	{"F", "Fly mode on or off"},
+	{"Space / C", "Fly up / fly down"},
+	{"W A S D", "Move (flying: where you look)"},
+	{"", NULL},
+	{"`", "Console, e.g. map e1m1"},
+	{"H", "Show or hide this help"},
+};
+
+static void draw_help (void)
+{
+	int	n = (int) (sizeof(help_lines) / sizeof(help_lines[0]));
+	int	scale, keycol = 22, w = 58, x, y, i, k;
+	char	line[64];
+
+	scale = glheight / 360;
+	if (scale < 1)
+		scale = 1;
+	GL_SetCanvas (CANVAS_DEFAULT);
+	glPushMatrix ();
+	glScalef ((float) scale, (float) scale, 1);
+	x = (glwidth / scale - w * 8) / 2;
+	y = (glheight / scale - n * 10) / 2;
+	Draw_Fill (x - 12, y - 12, w * 8 + 24, n * 10 + 24, 0, 0.75f);
+	for (i = 0; i < n; i++)
+	{
+		const char *key = help_lines[i][0], *what = help_lines[i][1];
+
+		if (!what)
+		{
+			/* a heading, in the alternate (gold) colour */
+			q_strlcpy (line, key, sizeof(line));
+			for (k = 0; line[k]; k++)
+				line[k] |= 0x80;
+			Draw_String (x, y + i * 10, line);
+			continue;
+		}
+		q_strlcpy (line, key, sizeof(line));
+		for (k = 0; line[k]; k++)
+			line[k] |= 0x80;
+		Draw_String (x, y + i * 10, line);
+		Draw_String (x + keycol * 8, y + i * 10, what);
+	}
+	glPopMatrix ();
+}
 
 /* the welcome text in the cube room, for 20 seconds or until build mode is entered */
 void ArchBuild_DrawIntro (void)
@@ -804,6 +875,14 @@ void ArchBuild_DrawIntro (void)
 	const char	*s = intro_text;
 	int		scale, width, n = 0, i, top, boxw;
 
+	if (help_visible)
+	{
+		if (!Arch_BrushWorld () || (!Arch_Active () && !build_session))
+			help_visible = false;	/* left for a normal game */
+		else if (key_dest == key_game)
+			draw_help ();
+		return;
+	}
 	if (intro_pending)
 	{
 		if (!Arch_Active () || cls.signon != SIGNONS)
@@ -878,7 +957,17 @@ void ArchBuild_NewMap (void)
 		{'b', "arch_build"},
 		{'r', "arch_snap"},
 	};
+	/* keys added later that another command may share: bound only if the key itself is free */
+	static const struct { int key; const char *command; } free_keys[] =
+	{
+		{'c', "+movedown"},
+		{'h', "arch_help"},
+	};
 	int	i, k;
+
+	for (i = 0; i < (int) (sizeof(free_keys) / sizeof(free_keys[0])); i++)
+		if (!keybindings[free_keys[i].key] || !keybindings[free_keys[i].key][0])
+			Key_SetBinding (free_keys[i].key, free_keys[i].command);
 
 	for (i = 0; i < (int) (sizeof(defaults) / sizeof(defaults[0])); i++)
 	{
@@ -895,6 +984,7 @@ void ArchBuild_Init (void)
 	Cvar_RegisterVariable (&arch_drag_speed);
 	Cmd_AddCommand ("arch_build", ArchBuild_Toggle_f);
 	Cmd_AddCommand ("arch_buildmode", ArchBuild_Session_f);
+	Cmd_AddCommand ("arch_help", ArchBuild_Help_f);
 	Cmd_AddCommand ("arch_action", ArchBuild_Action_f);
 	Cmd_AddCommand ("arch_snap", ArchBuild_Snap_f);
 	Cmd_AddCommand ("+arch_primary", ArchBuild_PrimaryDown_f);

@@ -23,7 +23,11 @@ void		Arch_ServerSpawn (void);	/* call when a server starts, once its world mode
 const char	*Arch_Dir (void);	/* value of -archdir, forward slashes, no trailing slash; NULL if absent */
 void		Arch_TextureNames (const char *names[3]);	/* indexed by ARCH_SLOT_* */
 void		ArchGame_PlayerFrame (edict_t *ent);	/* run for each player just before its QuakeC post-think */
-void		ArchGame_NewMap (void);			/* call when the arch map starts */
+void		ArchGame_NewMap (void);
+/* Fly mode as a fly camera: the player moves where they look, jump rises, move-down
+   sinks, and everything stops when the keys are let go. Returns false when the
+   engine's own movement should run instead. */
+qboolean	ArchGame_FlyMove (edict_t *player, const usercmd_t *move, float *velocity);			/* call when the arch map starts */
 qboolean	ArchGame_CampaignEdit (void *shape, qboolean carve, vec3_t at);	/* shape is an abrush_t */
 /* everything the game code writes to a network message passes through these, so that
    explosions and lightning beams can be noticed (weapon digging) */

@@ -39,7 +39,9 @@ Build mode, in short:
   Mouse wheel              resize the cursor
   Hold middle mouse        choose an action: box, arch or jump pad
   R                        fit the cursor to the wall you aim at
-  F                        fly on or off
+  F                        fly on or off; while flying, Space rises, C sinks,
+                           and you move where you look
+  H                        show or hide the full key list
 
 Settings are typed in the console:
   arch_dig 0               stop weapons digging

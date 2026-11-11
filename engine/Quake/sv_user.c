@@ -330,6 +330,9 @@ void SV_AirMove (void)
 	float		wishspeed;
 	float		fmove, smove;
 
+	if (ArchGame_FlyMove (sv_player, &cmd, velocity)) // QUAKEARCH: fly mode moves like a fly camera
+		return;
+
 	AngleVectors (sv_player->v.angles, forward, right, up);
 
 	fmove = cmd.forwardmove;

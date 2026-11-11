@@ -40,13 +40,14 @@ Arguments after `run.bat` are passed to the engine, for example `run.bat -window
 |---|---|
 | W A S D | Move |
 | Mouse | Look |
-| Space | Jump (swim or fly up) |
-| Ctrl | Fly down |
+| Space | Jump (swim, or rise while flying) |
+| C or Ctrl | Sink while flying |
 | Shift | Walk |
 | Left mouse | Fire |
 | 1 to 8, mouse wheel | Choose weapon |
-| F | Toggle flying |
-| B | Toggle build mode |
+| F | Toggle flying. Flying works like a camera: you move where you look and stop when you let go |
+| B | Toggle build mode (Build Mode only) |
+| H | Show or hide the build-mode key list (Build Mode only) |
 | ` | Console |
 | F12 | Screenshot |
 

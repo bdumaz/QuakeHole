@@ -522,6 +522,34 @@ qboolean ArchGame_CampaignEdit (void *shape_ptr, qboolean carve, vec3_t at)
 	return ok != 0;
 }
 
+extern cvar_t sv_maxspeed;
+
+qboolean ArchGame_FlyMove (edict_t *player, const usercmd_t *move, float *velocity)
+{
+	vec3_t	forward, right, up, wish;
+	float	speed, max = sv_maxspeed.value;
+	int	i;
+
+	if (player->v.movetype != MOVETYPE_FLY || !Arch_BrushWorld ())
+		return false;
+	/* the view's own direction, pitch included: look down and walk forward to go down */
+	AngleVectors (player->v.v_angle, forward, right, up);
+	for (i = 0; i < 3; i++)
+		wish[i] = forward[i] * move->forwardmove + right[i] * move->sidemove;
+	wish[2] += move->upmove;
+	if (player->v.button2)
+	{
+		wish[2] += max;			/* jump rises */
+		player->v.button2 = 0;		/* and is not a jump to the game code */
+	}
+	speed = VectorLength (wish);
+	if (speed > max)
+		VectorScale (wish, max / speed, wish);
+	/* no momentum: with no keys held the player hangs where they are */
+	VectorCopy (wish, velocity);
+	return true;
+}
+
 /* jump pads: launch the player away from any pad they are touching */
 static void touch_pads (edict_t *ent)
 {
